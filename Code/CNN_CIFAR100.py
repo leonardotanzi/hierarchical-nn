@@ -181,9 +181,9 @@ if __name__ == "__main__":
     test_dataset = torchvision.datasets.CIFAR100(root='../data', train=False, download=True, transform=transform)
 
     num_epochs = 100
-    batch_size = 128
+    batch_size = 512
     learning_rate = 0.001
-    image_size = 224
+    image_size = 32
 
     convnet = True
 
