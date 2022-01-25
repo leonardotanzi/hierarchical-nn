@@ -22,45 +22,24 @@ import os
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-def hierarchical_cc(predicted, actual):
-    coarse_labels = np.array([4, 1, 14, 8, 0, 6, 7, 7, 18, 3,
-                              3, 14, 9, 18, 7, 11, 3, 9, 7, 11,
-                              6, 11, 5, 10, 7, 6, 13, 15, 3, 15,
-                              0, 11, 1, 10, 12, 14, 16, 9, 11, 5,
-                              5, 19, 8, 8, 15, 13, 14, 17, 18, 10,
-                              16, 4, 17, 4, 2, 0, 17, 4, 18, 17,
-                              10, 3, 2, 12, 12, 16, 12, 1, 9, 19,
-                              2, 10, 0, 1, 16, 12, 9, 13, 15, 13,
-                              16, 19, 2, 4, 6, 19, 5, 5, 8, 19,
-                              18, 1, 2, 15, 6, 0, 17, 8, 14, 13])
+def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
 
-    superclasses = 20
     batch = predicted.size(0)
 
     # compute the loss for fine classes
     loss_fine = F.cross_entropy(predicted, actual)
 
     # define an empty vector which contains 20 superclasses prediction for each samples
-    predicted_coarse = torch.zeros(batch, 20, dtype=torch.float32, device="cuda:0")
+    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
 
-    # example
-    # we want all the prediction related to the first superclass (0). we sum all the probabilities related to the indexes
-    # where the superclass is 0 (index 4, 30, 55, 72, 95)
-    # is the same of bones but more tricky
-
-    # for each samples
-    # for i, sample in enumerate(predicted):
-        # for each superclass
-    for k in range(superclasses):
+    for k in range(n_superclass):
         # obtain the indexes of the superclass number k
         indexes = list(np.where(coarse_labels == k))[0]
         # for each index, sum all the probability related to that superclass
-        # predicted_coarse[i][k] = torch.sum(predicted[i][indexes])
-        # this is the same as doing:
         for j in indexes:
             predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy())
+    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
 
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device))
 
@@ -111,18 +90,9 @@ class ConvNet(nn.Module):
         return x
 
 
-def sparse2coarse(targets):
+def sparse2coarse(targets, coarse_labels):
     # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
-    coarse_labels = np.array([ 4,  1, 14,  8,  0,  6,  7,  7, 18,  3,
-                               3, 14,  9, 18,  7, 11,  3,  9,  7, 11,
-                               6, 11,  5, 10,  7,  6, 13, 15,  3, 15,
-                               0, 11,  1, 10, 12, 14, 16,  9, 11,  5,
-                               5, 19,  8,  8, 15, 13, 14, 17, 18, 10,
-                               16, 4, 17,  4,  2,  0, 17,  4, 18, 17,
-                               10, 3,  2, 12, 12, 16, 12,  1,  9, 19,
-                               2, 10,  0,  1, 16, 12,  9, 13, 15, 13,
-                              16, 19,  2,  4,  6, 19,  5,  5,  8, 19,
-                              18,  1,  2, 15,  6,  0, 17,  8, 14, 13])
+    pass
     return coarse_labels[targets]
 
 
@@ -130,8 +100,43 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    train_dataset = torchvision.datasets.CIFAR100(root='../data', train=True, download=True, transform=transform)
-    test_dataset = torchvision.datasets.CIFAR100(root='../data', train=False, download=True, transform=transform)
+    train_dir = "..//..//cifar//train//"
+    test_dir = "..//..//cifar//test//"
+
+    superclass = [['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+                  ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
+                  ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+                  ['bottle', 'bowl', 'can', 'cup', 'plate'],
+                  ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+                  ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+                  ['bed', 'chair', 'couch', 'table', 'wardrobe'],
+                  ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+                  ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+                  ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+                  ['cloud', 'forest', 'mountain', 'plain', 'sea'],
+                  ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+                  ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+                  ['crab', 'lobster', 'snail', 'spider', 'worm'],
+                  ['baby', 'boy', 'girl', 'man', 'woman'],
+                  ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+                  ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
+                  ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
+                  ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+                  ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
+
+    n_superclass = 3
+    excluded = []
+    coarse_labels = []
+    for i, sc in enumerate(superclass):
+        if i > (n_superclass - 1):
+            for j in sc:
+                excluded.append(j)
+        else:
+            for j in sc:
+                coarse_labels.append(i)
+
+    train_dataset = ClassSpecificImageFolder(train_dir, dropped_classes=excluded, transform=transform)
+    test_dataset = ClassSpecificImageFolder(test_dir, dropped_classes=excluded, transform=transform)
 
     num_epochs = 1000
     batch_size = 128
@@ -205,7 +210,7 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = hierarchical_cc(outputs, labels)
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), n_superclass)
 
                     # backward + optimize if training
                     if phase == "train":
