@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
 import os
-from utils import ClassSpecificImageFolder, imshow, train_val_dataset, sparse2coarse
+from utils import ClassSpecificImageFolder, imshow, train_val_dataset, sparse2coarse, exclude_classes
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
@@ -75,38 +75,7 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    superclass = [['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-                  ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
-                  ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-                  ['bottle', 'bowl', 'can', 'cup', 'plate'],
-                  ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-                  ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-                  ['bed', 'chair', 'couch', 'table', 'wardrobe'],
-                  ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-                  ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-                  ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-                  ['cloud', 'forest', 'mountain', 'plain', 'sea'],
-                  ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-                  ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-                  ['crab', 'lobster', 'snail', 'spider', 'worm'],
-                  ['baby', 'boy', 'girl', 'man', 'woman'],
-                  ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-                  ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
-                  ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
-                  ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-                  ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
-
-    n_superclass = 3
-    excluded = []
-    coarse_labels = []
-    for i, sc in enumerate(superclass):
-        if i > (n_superclass - 1):
-            for j in sc:
-                excluded.append(j)
-        else:
-            for j in sc:
-                coarse_labels.append(i)
-
+    excluded, coarse_labels = exclude_classes(n_superclasses=3)
     train_dataset = ClassSpecificImageFolder(train_dir, dropped_classes=excluded, transform=transform)
     test_dataset = ClassSpecificImageFolder(test_dir, dropped_classes=excluded, transform=transform)
 

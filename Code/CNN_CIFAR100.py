@@ -92,6 +92,8 @@ class ConvNet(nn.Module):
 
 if __name__ == "__main__":
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     train_dataset = torchvision.datasets.CIFAR100(root='../data', train=True, download=True, transform=transform)
@@ -112,8 +114,6 @@ if __name__ == "__main__":
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
     class_names = dataset['train'].dataset.classes
     print(class_names)
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # get some random training images and plot
     # dataiter = iter(train_loader)

@@ -68,3 +68,37 @@ def sparse2coarse_full(targets):
 def sparse2coarse(targets, coarse_labels):
     # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
     return coarse_labels[targets]
+
+
+def exclude_classes(n_superclasses):
+    superclass = [['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+                  ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
+                  ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+                  ['bottle', 'bowl', 'can', 'cup', 'plate'],
+                  ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+                  ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+                  ['bed', 'chair', 'couch', 'table', 'wardrobe'],
+                  ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+                  ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+                  ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+                  ['cloud', 'forest', 'mountain', 'plain', 'sea'],
+                  ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+                  ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+                  ['crab', 'lobster', 'snail', 'spider', 'worm'],
+                  ['baby', 'boy', 'girl', 'man', 'woman'],
+                  ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+                  ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
+                  ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
+                  ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+                  ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
+    excluded = []
+    coarse_labels = []
+    for i, sc in enumerate(superclass):
+        if i > (n_superclasses - 1):
+            for j in sc:
+                excluded.append(j)
+        else:
+            for j in sc:
+                coarse_labels.append(i)
+
+    return excluded, coarse_labels
