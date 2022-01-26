@@ -205,7 +205,7 @@ if __name__ == "__main__":
                     best_acc = epoch_acc
 
     print("Finished Training")
-    PATH = "cnn_hierarchical.pth"
+    PATH = "..\\..\\cnn_hierarchical.pth"
     torch.save(model.state_dict(), PATH)
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -232,4 +232,4 @@ if __name__ == "__main__":
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names], columns=[i for i in class_names])
     plt.figure(figsize=(12, 7))
     sn.heatmap(df_cm, annot=True)
-    plt.savefig('output.png')
+    plt.savefig("output.png")
