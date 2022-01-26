@@ -1,13 +1,10 @@
 import torch
 import torchvision
 import torch.nn as nn
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
-from torchvision.datasets import ImageFolder
 import torch.nn.functional as F
 from torchsummary import summary
 from torch.optim import SGD
@@ -15,11 +12,8 @@ from torchvision import datasets, models
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
-import torchvision.transforms as transforms
-from CNN_bones import ClassSpecificImageFolder
 import os
-
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
+from utils import imshow, train_val_dataset, sparse2coarse_full
 
 
 def hierarchical_cc(predicted, actual):
@@ -60,26 +54,11 @@ def hierarchical_cc(predicted, actual):
         for j in indexes:
             predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy())
+    actual_coarse = sparse2coarse_full(actual.cpu().detach().numpy())
 
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device))
 
     return loss_fine + loss_coarse
-
-
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
-def train_val_dataset(dataset, val_split=0.15):
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
-    datasets = {}
-    datasets["train"] = Subset(dataset, train_idx)
-    datasets["val"] = Subset(dataset, val_idx)
-    return datasets
 
 
 class ConvNet(nn.Module):
@@ -109,21 +88,6 @@ class ConvNet(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-
-
-def sparse2coarse(targets):
-    # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
-    coarse_labels = np.array([ 4,  1, 14,  8,  0,  6,  7,  7, 18,  3,
-                               3, 14,  9, 18,  7, 11,  3,  9,  7, 11,
-                               6, 11,  5, 10,  7,  6, 13, 15,  3, 15,
-                               0, 11,  1, 10, 12, 14, 16,  9, 11,  5,
-                               5, 19,  8,  8, 15, 13, 14, 17, 18, 10,
-                               16, 4, 17,  4,  2,  0, 17,  4, 18, 17,
-                               10, 3,  2, 12, 12, 16, 12,  1,  9, 19,
-                               2, 10,  0,  1, 16, 12,  9, 13, 15, 13,
-                              16, 19,  2,  4,  6, 19,  5,  5,  8, 19,
-                              18,  1,  2, 15,  6,  0, 17,  8, 14, 13])
-    return coarse_labels[targets]
 
 
 if __name__ == "__main__":

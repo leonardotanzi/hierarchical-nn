@@ -1,13 +1,9 @@
 import torch
-import torchvision
 import torch.nn as nn
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
-from torchvision.datasets import ImageFolder
 import torch.nn.functional as F
 from torchsummary import summary
 from torch.optim import SGD
@@ -15,11 +11,8 @@ from torchvision import datasets, models
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
-import torchvision.transforms as transforms
-from CNN_bones import ClassSpecificImageFolder
 import os
-
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
+from utils import ClassSpecificImageFolder, imshow, train_val_dataset, sparse2coarse
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
@@ -44,21 +37,6 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device))
 
     return loss_fine + loss_coarse
-
-
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
-def train_val_dataset(dataset, val_split=0.15):
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
-    datasets = {}
-    datasets["train"] = Subset(dataset, train_idx)
-    datasets["val"] = Subset(dataset, val_idx)
-    return datasets
 
 
 class ConvNet(nn.Module):
@@ -88,12 +66,6 @@ class ConvNet(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-
-
-def sparse2coarse(targets, coarse_labels):
-    # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
-    pass
-    return coarse_labels[targets]
 
 
 if __name__ == "__main__":
@@ -210,7 +182,7 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), n_superclass)
+                    loss = criterion(outputs, labels) #hierarchical_cc(outputs, labels, np.asarray(coarse_labels), n_superclass)
 
                     # backward + optimize if training
                     if phase == "train":

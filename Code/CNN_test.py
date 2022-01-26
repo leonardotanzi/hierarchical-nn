@@ -1,8 +1,6 @@
 import torch
 import torchvision
 import torch.nn as nn
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
@@ -13,16 +11,13 @@ from torchsummary import summary
 from torch.optim import SGD
 from torchvision import datasets, models
 import os
-import os
 import copy
 from torch.optim import lr_scheduler
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
-from myCNN import ClassSpecificImageFolder
+from utils import ClassSpecificImageFolder
 
-
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 if __name__ == "__main__":
 

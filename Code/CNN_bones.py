@@ -1,26 +1,17 @@
 import torch
-import torchvision
 import torch.nn as nn
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
-from torchvision.datasets import ImageFolder
 import torch.nn.functional as F
 from torchsummary import summary
 from torch.optim import SGD
-from torchvision import datasets, models
-import os
-import os
-import copy
-from torch.optim import lr_scheduler
+from torchvision import models
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
-
-IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
+from utils import ClassSpecificImageFolder, imshow, train_val_dataset
 
 
 def hierarchical_cross_entropy(predicted, actual):
@@ -77,48 +68,6 @@ def hierarchical_cross_entropy(predicted, actual):
         final_loss = loss_fine + loss_coarse
 
     return final_loss
-
-
-class ClassSpecificImageFolder(datasets.DatasetFolder):
-    def __init__(
-            self,
-            root,
-            dropped_classes=[],
-            transform=None,
-            target_transform=None,
-            loader=datasets.folder.default_loader,
-            is_valid_file=None,
-    ):
-        self.dropped_classes = dropped_classes
-        super(ClassSpecificImageFolder, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                                                       transform=transform,
-                                                       target_transform=target_transform,
-                                                       is_valid_file=is_valid_file)
-        self.imgs = self.samples
-
-    def find_classes(self, directory):
-        classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir())
-        classes = [c for c in classes if c not in self.dropped_classes]
-        if not classes:
-            raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
-
-        class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
-        return classes, class_to_idx
-
-
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
-def train_val_dataset(dataset, val_split=0.15):
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
-    datasets = {}
-    datasets["train"] = Subset(dataset, train_idx)
-    datasets["val"] = Subset(dataset, val_idx)
-    return datasets
 
 
 class ConvNet(nn.Module):
