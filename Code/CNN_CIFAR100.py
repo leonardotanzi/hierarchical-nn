@@ -45,6 +45,7 @@ def hierarchical_cc(predicted, actual):
     # for each samples
     # for i, sample in enumerate(predicted):
         # for each superclass
+
     for k in range(superclasses):
         # obtain the indexes of the superclass number k
         indexes = list(np.where(coarse_labels == k))[0]

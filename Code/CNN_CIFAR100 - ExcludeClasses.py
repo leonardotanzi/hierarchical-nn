@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +13,8 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
 import os
-from utils import ClassSpecificImageFolder, imshow, train_val_dataset, sparse2coarse, exclude_classes
+from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
+    get_classes, get_superclasses
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
@@ -75,9 +77,19 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    excluded, coarse_labels = exclude_classes(n_superclasses=3)
-    train_dataset = ClassSpecificImageFolder(train_dir, dropped_classes=excluded, transform=transform)
-    test_dataset = ClassSpecificImageFolder(test_dir, dropped_classes=excluded, transform=transform)
+    model_name = "..//..//cnn_not-hierarchical_allclasses.pth"
+
+    classes_name = get_classes()
+
+    #superclasses = ["flowers", "fruit and vegetables", "trees"]
+    superclasses = get_superclasses()
+
+    excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
+
+    classes_name.append(excluded)
+
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
+    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
     num_epochs = 1000
     batch_size = 128
@@ -98,9 +110,9 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # get some random training images and plot
-    # dataiter = iter(train_loader)
-    # images, labels = dataiter.next()
-    # imshow(torchvision.utils.make_grid(images))
+    dataiter = iter(train_loader)
+    images, labels = dataiter.next()
+    imshow(torchvision.utils.make_grid(images))
 
     if convnet:
         model = ConvNet(num_classes=len(class_names))
@@ -151,7 +163,7 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels) #hierarchical_cc(outputs, labels, np.asarray(coarse_labels), n_superclass)
+                    loss = criterion(outputs, labels)  # hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses))
 
                     # backward + optimize if training
                     if phase == "train":
@@ -174,8 +186,7 @@ if __name__ == "__main__":
                     best_acc = epoch_acc
 
     print("Finished Training")
-    PATH = "..\\..\\cnn_hierarchical.pth"
-    torch.save(model.state_dict(), PATH)
+    torch.save(model.state_dict(), model_name)
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 

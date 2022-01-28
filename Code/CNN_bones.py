@@ -12,6 +12,7 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
 from utils import ClassSpecificImageFolder, imshow, train_val_dataset
+import os
 
 
 def hierarchical_cross_entropy(predicted, actual):
