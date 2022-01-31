@@ -15,6 +15,8 @@ import pandas as pd
 import os
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses
+import sys
+from torch.utils.tensorboard import SummaryWriter
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
@@ -77,8 +79,9 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    model_name = "..//..//cnn_not-hierarchical_allclasses.pth"
+    model_name = "..//..//cnn_hierarchical_allclasses.pth"
 
+    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
     classes_name = get_classes()
 
     #superclasses = ["flowers", "fruit and vegetables", "trees"]
@@ -127,11 +130,13 @@ if __name__ == "__main__":
     model.to(device)
 
     print(summary(model, (3, 32, 32)))
+    writer.add_graph(model, images.to(device))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = SGD(model.parameters(), lr=learning_rate)
     # step_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # every 7 epoch the lr is multiplied by this value
-    n_total_steps = len(train_loader)
+    n_total_steps_train = len(train_loader)
+    n_total_steps_val = len(val_loader)
 
     best_acc = 0.0
 
@@ -145,10 +150,13 @@ if __name__ == "__main__":
             if phase == "train":
                 model.train()  # Set model to training mode
                 loader = train_loader
+                n_total_steps = n_total_steps_train
             else:
                 model.eval()  # Set model to evaluate mode
                 loader = val_loader
+                n_total_steps = n_total_steps_val
 
+            # vengono set a zero sia per train che per valid
             running_loss = 0.0
             running_corrects = 0
 
@@ -163,7 +171,7 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)  # hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses))
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses)) #+ criterion(outputs, labels)  #
 
                     # backward + optimize if training
                     if phase == "train":
@@ -174,6 +182,14 @@ if __name__ == "__main__":
                     running_loss += loss.item() * images.size(0)
                     running_corrects += torch.sum(preds == labels.data)
 
+                    if phase == "train":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    elif phase == "val":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
                 # if phase == "train":
                 #     step_lr_scheduler.step()
 
@@ -182,11 +198,12 @@ if __name__ == "__main__":
 
                 print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc))
 
-                if phase == "val" and epoch_acc > best_acc:
+                if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc > best_acc:
                     best_acc = epoch_acc
+                    torch.save(model.state_dict(), model_name)
+                    print("New best accuracy {}, saving best model".format(best_acc))
 
     print("Finished Training")
-    torch.save(model.state_dict(), model_name)
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
