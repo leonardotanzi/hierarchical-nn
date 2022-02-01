@@ -72,6 +72,18 @@ class ConvNet(nn.Module):
         return x
 
 
+def classic_cc(predicted, actual):
+
+    # sftmax_out = predicted - predicted.exp().sum(-1).log().unsqueeze(-1) #sftmx = F.log_softmax(predicted, dim=1)
+    # actual_onehot = F.one_hot(actual)
+    # out1 = actual_onehot * sftmx_out
+    # loss = torch.sum(-out1)
+
+    # or
+
+    return torch.sum(-F.one_hot(actual) * (predicted - predicted.exp().sum(-1).log().unsqueeze(-1)))
+
+
 if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -84,8 +96,8 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
     classes_name = get_classes()
 
-    #superclasses = ["flowers", "fruit and vegetables", "trees"]
-    superclasses = get_superclasses()
+    superclasses = ["flowers", "fruit and vegetables", "trees"]
+    # superclasses = get_superclasses()
 
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
 
@@ -132,7 +144,7 @@ if __name__ == "__main__":
     print(summary(model, (3, 32, 32)))
     writer.add_graph(model, images.to(device))
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(reduction="sum")
     optimizer = SGD(model.parameters(), lr=learning_rate)
     # step_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # every 7 epoch the lr is multiplied by this value
     n_total_steps_train = len(train_loader)
@@ -171,8 +183,8 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses)) #+ criterion(outputs, labels)  #
-
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses))
+                    # loss = classic_cc(outputs, labels)
                     # backward + optimize if training
                     if phase == "train":
                         optimizer.zero_grad()
