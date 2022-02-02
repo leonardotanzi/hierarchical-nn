@@ -1,56 +1,15 @@
+from torch.autograd import Variable
 import torch
 import torchvision
 import torch.nn as nn
-import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
-from torchsummary import summary
-from torch.optim import SGD
-from torchvision import datasets, models
-from sklearn.metrics import confusion_matrix
-import seaborn as sn
-import pandas as pd
 import os
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses
-import sys
 from torch.utils.tensorboard import SummaryWriter
-
-
-def hierarchical_cc(predicted, actual, coarse_labels, n_superclass):
-
-    batch = predicted.size(0)
-
-    # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual)
-
-    # define an empty vector which contains 20 superclasses prediction for each samples
-    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
-
-    for k in range(n_superclass):
-        # obtain the indexes of the superclass number k
-        indexes = list(np.where(coarse_labels == k))[0]
-        # for each index, sum all the probability related to that superclass
-        for j in indexes:
-            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
-
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-
-    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device))
-
-    return loss_fine + loss_coarse
-
-
-def classic_cc(predicted, actual):
-    # sftmax_out = predicted - predicted.exp().sum(-1).log().unsqueeze(-1) #sftmx = F.log_softmax(predicted, dim=1)
-    # actual_onehot = F.one_hot(actual)
-    # out1 = actual_onehot * sftmx_out
-    # loss = torch.sum(-out1)
-
-    # or
-    return torch.sum(-F.one_hot(actual) * (predicted - predicted.exp().sum(-1).log().unsqueeze(-1)))
 
 
 class ConvNet(nn.Module):
@@ -82,16 +41,47 @@ class ConvNet(nn.Module):
         return x
 
 
+def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes):
+
+    batch = predicted.size(0)
+
+    # compute the loss for fine classes
+    loss_fine = F.cross_entropy(predicted, actual, reduction="sum")
+
+    # define an empty vector which contains 20 superclasses prediction for each samples
+    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
+
+    for k in range(n_superclass):
+        # obtain the indexes of the superclass number k
+        indexes = list(np.where(coarse_labels == k))[0]
+        # for each index, sum all the probability related to that superclass
+        for j in indexes:
+            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+
+    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="sum")
+
+    # I take all the w_classes related to the index. so for example a sample which lable is 2 will get the regularizer
+    # in position 2 associated, the same for superclasses
+
+    regularizer1 = w_classes[actual]
+    regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
+
+    return loss_fine + loss_coarse + torch.linalg.norm(regularizer1 + regularizer2)
+
+
 if __name__ == "__main__":
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    model_name = "..//..//cnn_hierarchical_allclasses.pth"
+    model_name = "..//..//cnn_hierarchical_regularization_3classes.pth"
 
-    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
     classes_name = get_classes()
 
     superclasses = ["flowers", "fruit and vegetables", "trees"]
@@ -101,15 +91,15 @@ if __name__ == "__main__":
 
     classes_name.append(excluded)
 
-    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
-    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name,
+                                                          transform=transform)
+    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name,
+                                                         transform=transform)
 
     num_epochs = 1000
     batch_size = 128
     learning_rate = 0.001
     image_size = 32
-
-    convnet = True
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
 
@@ -120,31 +110,22 @@ if __name__ == "__main__":
     class_names = dataset['train'].dataset.classes
     print(class_names)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #################################################################################
 
-    # get some random training images and plot
-    dataiter = iter(train_loader)
-    images, labels = dataiter.next()
-    imshow(torchvision.utils.make_grid(images))
+    H, num_class, num_superclass = 2048, len(class_names), len(superclasses)
+    num_class_per_superclass = int(num_class / num_superclass)
 
-    if convnet:
-        model = ConvNet(num_classes=len(class_names))
+    w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
+    w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
+    # Network
+    model = ConvNet(num_class * num_superclass).to(device)
 
-    else:
-        model = models.resnet18(pretrained=True)
-        for param in model.parameters():
-            param.requires_grad = False
-        num_ftrs = model.fc.in_features  # input features for the last layers
-        model.fc = nn.Linear(num_ftrs, out_features=len(class_names))  # we have 2 classes now
+    # Optimizer
+    optimizer = torch.optim.SGD([
+        {'params': model.parameters()},
+        {'params': [w_superclasses, w_classes]}
+    ], lr=0.001)
 
-    model.to(device)
-
-    print(summary(model, (3, 32, 32)))
-    writer.add_graph(model, images.to(device))
-
-    criterion = nn.CrossEntropyLoss(reduction="sum")
-    optimizer = SGD(model.parameters(), lr=learning_rate)
-    # step_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # every 7 epoch the lr is multiplied by this value
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
 
@@ -181,8 +162,8 @@ if __name__ == "__main__":
 
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses))
-                    # loss = classic_cc(outputs, labels)
+
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes)
                     # backward + optimize if training
                     if phase == "train":
                         optimizer.zero_grad()
@@ -191,17 +172,6 @@ if __name__ == "__main__":
 
                     running_loss += loss.item() * images.size(0)
                     running_corrects += torch.sum(preds == labels.data)
-
-                    if phase == "train":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
-                    elif phase == "val":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
-                # if phase == "train":
-                #     step_lr_scheduler.step()
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
