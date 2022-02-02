@@ -9,7 +9,10 @@ import torch.nn.functional as F
 import os
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses
-from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sn
+import pandas as pd
 
 
 class ConvNet(nn.Module):
@@ -41,7 +44,7 @@ class ConvNet(nn.Module):
         return x
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes):
+def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes, weight_decay):
 
     batch = predicted.size(0)
 
@@ -68,7 +71,7 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclass
     regularizer1 = w_classes[actual]
     regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
 
-    return loss_fine + loss_coarse + torch.linalg.norm(regularizer1 + regularizer2)
+    return loss_fine + loss_coarse + weight_decay * torch.linalg.norm(regularizer1 + regularizer2)
 
 
 if __name__ == "__main__":
@@ -79,27 +82,27 @@ if __name__ == "__main__":
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
-
-    model_name = "..//..//cnn_hierarchical_regularization_3classes.pth"
-
-    classes_name = get_classes()
-
-    superclasses = ["flowers", "fruit and vegetables", "trees"]
-    # superclasses = get_superclasses()
-
-    excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
-
-    classes_name.append(excluded)
-
-    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name,
-                                                          transform=transform)
-    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name,
-                                                         transform=transform)
+    model_name = "..//..//cnn_hierarchical_regularization_3classesprova.pth"
 
     num_epochs = 1000
     batch_size = 128
     learning_rate = 0.001
     image_size = 32
+    weight_decay = 1e-4
+
+    classes_name = get_classes()
+    # read superclasses, you can manually select some or get all with get_superclasses()
+    superclasses = ["flowers", "fruit and vegetables", "trees"]
+    # superclasses = get_superclasses()
+
+    # given the list of superclasses, returns the class to exclude and the coarse label
+    excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
+
+    classes_name.append(excluded)
+
+    # take as input a list of list with the first element being the classes_name and the second the classes to exclude
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
+    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
 
@@ -110,21 +113,24 @@ if __name__ == "__main__":
     class_names = dataset['train'].dataset.classes
     print(class_names)
 
-    #################################################################################
+    # H is the number of element in the each regulizing vector
+    H, num_class, num_superclass = 1024, len(class_names), len(superclasses)
 
-    H, num_class, num_superclass = 2048, len(class_names), len(superclasses)
-    num_class_per_superclass = int(num_class / num_superclass)
+    # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
+    # regularizing vector in the tree
+    # w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
+    w_superclasses = Variable(torch.empty(size=(num_superclass, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
+    # w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
+    w_classes = Variable(torch.empty(size=(num_class, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
 
-    w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
-    w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
     # Network
-    model = ConvNet(num_class * num_superclass).to(device)
+    model = ConvNet(num_class).to(device)
 
     # Optimizer
     optimizer = torch.optim.SGD([
         {'params': model.parameters()},
         {'params': [w_superclasses, w_classes]}
-    ], lr=0.001)
+    ], lr=learning_rate)
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -134,7 +140,7 @@ if __name__ == "__main__":
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch + 1, num_epochs - 1))
         print(f"Best acc: {best_acc:.4f}")
-        print("-" * 10)
+        print("-" * 30)
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
@@ -163,7 +169,7 @@ if __name__ == "__main__":
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
 
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes)
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes, weight_decay)
                     # backward + optimize if training
                     if phase == "train":
                         optimizer.zero_grad()
