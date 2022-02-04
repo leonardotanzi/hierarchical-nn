@@ -44,19 +44,23 @@ class ConvNetIntermediate(nn.Module):
         x_intermediate = x.view(-1, 128 * 8 * 8)
         x_intermediate = F.relu(self.fc_scl1(x_intermediate))
         x_intermediate = F.relu(self.fc_h(x_intermediate))
-        x_intermediate = self.fc_scl2(x_intermediate)
+        x_superclasses = self.fc_scl2(x_intermediate)
+
+        #reshape the last layer before prediction from 2048 to 128*4*4 and then upsample to match the size
+        x_intermediate = x_intermediate.view((-1, 128, 4, 4))
+        x_intermediate = nn.Upsample(scale_factor=2)(x_intermediate)
 
         # second branch
-        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv3(x + x_intermediate))
         x = self.pool(x)
         x = F.relu(self.conv4(x))
         x = self.pool(x)
         x = x.view(-1, 512 * 2 * 2)
         x = F.relu(self.fc_cl1(x))
         x = F.relu(self.fc_h(x))
-        x = self.fc_cl2(x)
+        x_classes = self.fc_cl2(x)
 
-        return x, x_intermediate
+        return x_classes, x_superclasses
 
 
 if __name__ == "__main__":
@@ -66,7 +70,7 @@ if __name__ == "__main__":
     transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     train_dir = "..//..//cifar//train//"
-    model_name = "..//..//cnn_hierarchical_3classes_intermediate.pth"
+    model_name = "..//..//cnn_hierarchical_3classes_intermediate_sum.pth"
 
     batch_size = 128
     learning_rate = 0.001
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
 
     model = ConvNetIntermediate(num_classes=15, num_superclasses=3).to(device)
-    print(summary(model, (3, 32, 32)))
+    # print(summary(model, (3, 32, 32)))
 
     optimizer = SGD(model.parameters(), lr=0.001)
 
