@@ -3,7 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn
 import numpy as np
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SubsetRandomSampler
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
 import os
@@ -13,6 +13,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
+from sklearn.model_selection import KFold
 
 
 class ConvNet(nn.Module):
@@ -83,9 +84,8 @@ if __name__ == "__main__":
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
-    model_name = "..//..//cnn_not_hierarchical_regularization_3classes.pth"
 
-    num_epochs = 1000
+    num_epochs = 2
     batch_size = 128
     learning_rate = 0.001
     image_size = 32
@@ -105,90 +105,105 @@ if __name__ == "__main__":
     train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
-    dataset = train_val_dataset(train_dataset, val_split=0.15)
+    torch.manual_seed(42)
+    splits = KFold(n_splits=5, shuffle=True, random_state=42)
 
-    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
+    name_out = "..//..//Models//cnn_hierarchical_regularization"
 
-    dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
-    class_names = dataset['train'].dataset.classes
-    print(class_names)
+    if not os.path.isdir(name_out):
+        os.mkdir(name_out)
 
-    # H is the number of element in the each regulizing vector
-    H, num_class, num_superclass = 1024, len(class_names), len(superclasses)
 
-    # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
-    # regularizing vector in the tree
-    # w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
-    w_superclasses = Variable(torch.empty(size=(num_superclass, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
-    # w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
-    w_classes = Variable(torch.empty(size=(num_class, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
+    for fold, (train_idx, val_idx) in enumerate(splits.split(np.arange(len(train_dataset)))):
+        print('Fold {}'.format(fold + 1))
 
-    # Network
-    model = ConvNet(num_class).to(device)
+        model_name = name_out + "//Fold{}_".format(fold + 1) + name_out.split("//")[-1] + ".pth"
 
-    # Optimizer
-    optimizer = torch.optim.SGD([
-        {'params': model.parameters()},
-        {'params': [w_superclasses, w_classes]}
-    ], lr=learning_rate)
+        train_sampler = SubsetRandomSampler(train_idx)
+        val_sampler = SubsetRandomSampler(val_idx)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler)
+        val_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_sampler)
 
-    n_total_steps_train = len(train_loader)
-    n_total_steps_val = len(val_loader)
+        dataset_sizes = {'train': len(train_loader), 'val': len(val_loader)}
+        class_names = train_dataset.classes
+        print(class_names)
 
-    best_acc = 0.0
+        # H is the number of element in the each regulizing vector
+        H, num_class, num_superclass = 1024, len(class_names), len(superclasses)
 
-    for epoch in range(num_epochs):
-        print("Epoch {}/{}".format(epoch + 1, num_epochs - 1))
-        print(f"Best acc: {best_acc:.4f}")
-        print("-" * 30)
+        # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
+        # regularizing vector in the tree
+        # w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
+        w_superclasses = Variable(torch.empty(size=(num_superclass, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
+        # w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
+        w_classes = Variable(torch.empty(size=(num_class, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
 
-        # Each epoch has a training and validation phase
-        for phase in ["train", "val"]:
-            if phase == "train":
-                model.train()  # Set model to training mode
-                loader = train_loader
-                n_total_steps = n_total_steps_train
-            else:
-                model.eval()  # Set model to evaluate mode
-                loader = val_loader
-                n_total_steps = n_total_steps_val
+        # Network
+        model = ConvNet(num_class).to(device)
 
-            # vengono set a zero sia per train che per valid
-            running_loss = 0.0
-            running_corrects = 0
+        # Optimizer
+        optimizer = torch.optim.SGD([
+            {'params': model.parameters()},
+            {'params': [w_superclasses, w_classes]}
+        ], lr=learning_rate)
 
-            for i, (images, labels) in enumerate(loader):
+        n_total_steps_train = len(train_loader)
+        n_total_steps_val = len(val_loader)
 
-                images = images.to(device)
-                labels = labels.to(device)
+        best_acc = 0.0
 
-                # forward
-                # track history only if train
-                with torch.set_grad_enabled(phase == "train"):
+        for epoch in range(num_epochs):
+            print("Epoch {}/{}".format(epoch + 1, num_epochs - 1))
+            print(f"Best acc: {best_acc:.4f}")
+            print("-" * 30)
 
-                    outputs = model(images)
-                    _, preds = torch.max(outputs, 1)
+            # Each epoch has a training and validation phase
+            for phase in ["train", "val"]:
+                if phase == "train":
+                    model.train()  # Set model to training mode
+                    loader = train_loader
+                    n_total_steps = n_total_steps_train
+                else:
+                    model.eval()  # Set model to evaluate mode
+                    loader = val_loader
+                    n_total_steps = n_total_steps_val
 
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes, weight_decay)
-                    # backward + optimize if training
-                    if phase == "train":
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
+                # vengono set a zero sia per train che per valid
+                running_loss = 0.0
+                running_corrects = 0
 
-                    running_loss += loss.item() * images.size(0)
-                    running_corrects += torch.sum(preds == labels.data)
+                for i, (images, labels) in enumerate(loader):
 
-                epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / dataset_sizes[phase]
+                    images = images.to(device)
+                    labels = labels.to(device)
 
-                print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc))
+                    # forward
+                    # track history only if train
+                    with torch.set_grad_enabled(phase == "train"):
 
-                if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc > best_acc:
-                    best_acc = epoch_acc
-                    torch.save(model.state_dict(), model_name)
-                    print("New best accuracy {}, saving best model".format(best_acc))
+                        outputs = model(images)
+                        _, preds = torch.max(outputs, 1)
+
+                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes, weight_decay)
+                        # backward + optimize if training
+                        if phase == "train":
+                            optimizer.zero_grad()
+                            loss.backward()
+                            optimizer.step()
+
+                        running_loss += loss.item() * images.size(0)
+                        running_corrects += torch.sum(preds == labels.data)
+
+                    epoch_loss = running_loss / dataset_sizes[phase]
+                    epoch_acc = running_corrects.double() / dataset_sizes[phase]
+
+                    print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc))
+
+                    if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc > best_acc:
+                        best_acc = epoch_acc
+                        torch.save(model.state_dict(), model_name)
+                        print("New best accuracy {}, saving best model".format(best_acc))
+
 
     print("Finished Training")
 
