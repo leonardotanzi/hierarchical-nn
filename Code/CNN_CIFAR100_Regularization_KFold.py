@@ -85,7 +85,7 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    num_epochs = 2
+    num_epochs = 100
     batch_size = 128
     learning_rate = 0.001
     image_size = 32
@@ -108,11 +108,10 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     splits = KFold(n_splits=5, shuffle=True, random_state=42)
 
-    name_out = "..//..//Models//cnn_hierarchical_regularization"
+    name_out = "..//..//Models//cnn_baseline"
 
     if not os.path.isdir(name_out):
         os.mkdir(name_out)
-
 
     for fold, (train_idx, val_idx) in enumerate(splits.split(np.arange(len(train_dataset)))):
         print('Fold {}'.format(fold + 1))
@@ -203,6 +202,13 @@ if __name__ == "__main__":
                         best_acc = epoch_acc
                         torch.save(model.state_dict(), model_name)
                         print("New best accuracy {}, saving best model".format(best_acc))
+
+                    platoon = 0
+                    early stopping = 30
+                    if epoch_acc < best_acc:
+                        platoon += 1
+                        if platoon == early_stopping:
+                            break
 
 
     print("Finished Training")

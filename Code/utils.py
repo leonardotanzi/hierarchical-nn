@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Subset
 import os
+import torch
+
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
@@ -183,3 +185,19 @@ def exclude_classes(superclasses_names):
         coarse_labels.extend(tmp)
 
     return excluded, coarse_labels
+
+
+def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes,):
+    batch = predicted.size(0)
+    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
+
+    for k in range(n_superclass):
+        # obtain the indexes of the superclass number k
+        indexes = list(np.where(coarse_labels == k))[0]
+        # for each index, sum all the probability related to that superclass
+        for j in indexes:
+            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+
+    acc = np.sum(np.equal(actual_coarse, predicted_coarse)) / len(actual_coarse)

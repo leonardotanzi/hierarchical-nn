@@ -44,12 +44,22 @@ class ConvNet(nn.Module):
         return x
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes, weight_decay):
+def classic_cc(predicted, actual):
+    # sftmax_out = predicted - predicted.exp().sum(-1).log().unsqueeze(-1) #sftmx = F.log_softmax(predicted, dim=1)
+    # actual_onehot = F.one_hot(actual)
+    # out1 = actual_onehot * sftmx_out
+    # loss = torch.sum(-out1)
+
+    # or
+    return torch.sum(-F.one_hot(actual) * (predicted - predicted.exp().sum(-1).log().unsqueeze(-1)))
+
+
+def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes, weight_decay1=None, weight_decay2=None):
 
     batch = predicted.size(0)
 
     # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual, reduction="sum")
+    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
 
     # define an empty vector which contains 20 superclasses prediction for each samples
     predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
@@ -63,16 +73,18 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclass
 
     actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
 
-    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="sum")
+    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
 
     # I take all the w_classes related to the index. so for example a sample which lable is 2 will get the regularizer
     # in position 2 associated, the same for superclasses
 
-    regularizer1 = w_classes[actual]
-    regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
+    if weight_decay1 is not None:
+        regularizer1 = w_classes[actual]
+        regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
 
-    # return loss_fine + loss_coarse + weight_decay * (torch.linalg.norm(regularizer1) + torch.linalg.norm(regularizer2))
-    return loss_fine + weight_decay * (torch.linalg.norm(regularizer1 + regularizer2))
+        return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+
+    return loss_fine + loss_coarse
 
 
 if __name__ == "__main__":
@@ -83,18 +95,27 @@ if __name__ == "__main__":
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
-    model_name = "..//..//cnn_not_hierarchical_regularization_3classes.pth"
 
-    num_epochs = 1000
+    image_size = 32
+
+    num_epochs = 2000
     batch_size = 128
     learning_rate = 0.001
-    image_size = 32
-    weight_decay = 1e-4
+    early_stopping = 200
+
+    model_name = "..//..//cnn2000.pth"
+    hierarchical_loss = True
+    weight_decay1 = None
+    weight_decay2 = None
+    all_superclasses = False
 
     classes_name = get_classes()
-    # read superclasses, you can manually select some or get all with get_superclasses()
-    superclasses = ["flowers", "fruit and vegetables", "trees"]
-    # superclasses = get_superclasses()
+
+    if not all_superclasses:
+        # read superclasses, you can manually select some or get all with get_superclasses()
+        superclasses = ["flowers", "fruit and vegetables", "trees"]
+    else:
+        superclasses = get_superclasses()
 
     # given the list of superclasses, returns the class to exclude and the coarse label
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
@@ -112,34 +133,49 @@ if __name__ == "__main__":
 
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
     class_names = dataset['train'].dataset.classes
+    num_class, num_superclass = len(class_names), len(superclasses)
+
     print(class_names)
-
-    # H is the number of element in the each regulizing vector
-    H, num_class, num_superclass = 1024, len(class_names), len(superclasses)
-
-    # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
-    # regularizing vector in the tree
-    # w_superclasses = Variable(torch.randn(num_superclass, H).type(torch.FloatTensor), requires_grad=True)
-    w_superclasses = Variable(torch.empty(size=(num_superclass, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
-    # w_classes = Variable(torch.randn(size=(num_class, H)).type(torch.FloatTensor), requires_grad=True)
-    w_classes = Variable(torch.empty(size=(num_class, H)).normal_(mean=0, std=1.0).type(torch.FloatTensor), requires_grad=True)
 
     # Network
     model = ConvNet(num_class).to(device)
 
     # Optimizer
-    optimizer = torch.optim.SGD([
-        {'params': model.parameters()},
-        {'params': [w_superclasses, w_classes]}
-    ], lr=learning_rate)
+    if weight_decay1 is not None:
+
+        # H is the number of element in the each regulizing vector
+        hidden_dimension = 1024
+        # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
+        # regularizing vector in the tree
+        w_superclasses = Variable(
+            torch.empty(size=(num_superclass, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
+            requires_grad=True)
+        w_classes = Variable(
+            torch.empty(size=(num_class, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
+            requires_grad=True)
+
+        optimizer = torch.optim.SGD([
+            {'params': model.parameters()},
+            {'params': [w_superclasses, w_classes]}
+        ], lr=learning_rate)
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+    criterion = nn.CrossEntropyLoss(reduction="mean")
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
 
     best_acc = 0.0
+    platoon = 0
+    stop = False
 
     for epoch in range(num_epochs):
-        print("Epoch {}/{}".format(epoch + 1, num_epochs - 1))
+
+        if stop:
+            break
+
+        print("Epoch {}/{}".format(epoch + 1, num_epochs))
         print(f"Best acc: {best_acc:.4f}")
         print("-" * 30)
 
@@ -170,7 +206,12 @@ if __name__ == "__main__":
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
 
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses), w_superclasses, w_classes, weight_decay)
+                    if hierarchical_loss:
+                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses),
+                                               w_superclasses, w_classes, weight_decay1=None, weight_decay2=None)
+                    else:
+                        loss = F.cross_entropy(outputs, labels, reduction="mean")
+
                     # backward + optimize if training
                     if phase == "train":
                         optimizer.zero_grad()
@@ -187,8 +228,16 @@ if __name__ == "__main__":
 
                 if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc > best_acc:
                     best_acc = epoch_acc
+                    platoon = 0
                     torch.save(model.state_dict(), model_name)
-                    print("New best accuracy {}, saving best model".format(best_acc))
+                    print("New best accuracy {:.4f}, saving best model".format(best_acc))
+
+                if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc < best_acc:
+                    platoon += 1
+                    print("{} epochs without improvement".format(platoon))
+                    if platoon == early_stopping:
+                        print("Network didn't improve after {} epochs, early stopping".format(early_stopping))
+                        stop = True
 
     print("Finished Training")
 
