@@ -6,7 +6,7 @@ from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sn
 import pandas as pd
-from utils import ClassSpecificImageFolderNotAlphabetic, exclude_classes, get_classes
+from utils import ClassSpecificImageFolderNotAlphabetic, exclude_classes, get_classes, to_latex_heatmap
 from CNN_CIFAR100 import ConvNet
 from torch.autograd import Variable
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     class_names = test_dataset.classes
 
-    best_model_wts = "..\\..\\Models\\cnn_hierarchical_3classes_intermediate.pth"
+    best_model_wts = "..\\..\\Models\\cnn_half.pth"
 
     model = ConvNet(num_classes=len(class_names))
 
@@ -68,15 +68,23 @@ if __name__ == "__main__":
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
 
+    ## CLASSES
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(class_names), index=[i for i in class_names], columns=[i for i in class_names])
+
+    print(to_latex_heatmap(len(class_names), class_names,
+                           (cf_matrix / np.sum(cf_matrix) * len(class_names)) * 100))
+
     plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f")
+    sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0, vmax=1)
     plt.savefig("..\\ConfusionMatrixes\\{}-CMpercentage.png".format(best_model_wts.split("\\")[-1].split(".")[0]))
 
-    df_cm = pd.DataFrame(cf_matrix, index=[i for i in class_names], columns=[i for i in class_names])
-    plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, cmap="coolwarm", annot=True)
-    plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(best_model_wts.split("\\")[-1].split(".")[0]))
+    # df_cm = pd.DataFrame(cf_matrix, index=[i for i in class_names], columns=[i for i in class_names])
+    # plt.figure(figsize=(12, 7))
+    # sn.heatmap(df_cm, cmap="coolwarm", annot=True)
+    # plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(best_model_wts.split("\\")[-1].split(".")[0]))
+
+
+    ## SUPERCLASSES
 
     number_of_superclasses = len(superclasses)
     classes_for_superclass = 5
@@ -88,13 +96,16 @@ if __name__ == "__main__":
                                                          row * classes_for_superclass + classes_for_superclass,
                                                col * classes_for_superclass: col * classes_for_superclass + classes_for_superclass])
 
-    df_cm = pd.DataFrame(cf_matrix_super, index=[i for i in superclasses], columns=[i for i in superclasses])
-    plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt="g")
-    plt.savefig("..\\ConfusionMatrixes\\{}-CMsuperclass.png".format(best_model_wts.split("\\")[-1].split(".")[0]))
+    # df_cm = pd.DataFrame(cf_matrix_super, index=[i for i in superclasses], columns=[i for i in superclasses])
+    # plt.figure(figsize=(12, 7))
+    # a = sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt="g")
+    # plt.savefig("..\\ConfusionMatrixes\\{}-CMsuperclass.png".format(best_model_wts.split("\\")[-1].split(".")[0]))
 
     df_cm = pd.DataFrame(cf_matrix_super / np.sum(cf_matrix_super) * number_of_superclasses, index=[i for i in superclasses],
                          columns=[i for i in superclasses])
+
+    print(to_latex_heatmap(number_of_superclasses, superclasses, (cf_matrix_super / np.sum(cf_matrix_super) * number_of_superclasses) * 100))
+
     plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f")
+    sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0, vmax=1)
     plt.savefig("..\\ConfusionMatrixes\\{}-CMsuperclass_percentage.png".format(best_model_wts.split("\\")[-1].split(".")[0]))

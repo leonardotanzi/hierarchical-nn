@@ -1,7 +1,6 @@
 import numpy as np
 import torch.nn.functional as F
 import torch
-from CNN_CIFAR100 import sparse2coarse
 
 
 predicted = torch.tensor([[0.1, 0.2, 0.6, 0.1], [0.7, 0.1, 0.1, 0.1], [0.3, 0.4, 0.2, 0.1], [0.3, 0.2, 0.1, 0.4]], dtype=torch.float32)

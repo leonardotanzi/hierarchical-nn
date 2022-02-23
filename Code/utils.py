@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Subset
 import os
 import torch
+import cv2
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -187,7 +188,7 @@ def exclude_classes(superclasses_names):
     return excluded, coarse_labels
 
 
-def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes,):
+def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass):
     batch = predicted.size(0)
     predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
 
@@ -199,5 +200,78 @@ def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass, w_supe
             predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
     actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+    predicted_coarse = np.argmax(predicted_coarse.cpu().detach().numpy(), axis=1)
 
     acc = np.sum(np.equal(actual_coarse, predicted_coarse)) / len(actual_coarse)
+    return acc
+
+
+def to_latex_heatmap(n_classes, classes_name, matrix):
+
+    # "\newcommand\items{4}   %Number of classes
+    # \arrayrulecolor{black} %Table line colors
+    # \noindent\begin{tabular}{c*{\items}{|E}|}
+
+    # this output
+
+    # \end{tabular}"
+
+    basic_string = "\multicolumn{1}{c}{} &" + "\n"
+
+    for i in range(n_classes):
+        basic_string += "\multicolumn{1}{c}{" + str(i + 1) + "} "
+        if i != n_classes - 1:
+            basic_string += "& \n"
+
+    basic_string += "\\\ \hhline{~ *\items{ | -} |}" + "\n"
+
+    for i in range(n_classes):
+        basic_string += str(i + 1)
+
+        for j in range(n_classes):
+            basic_string += "& " + f"{matrix[i][j]:.1f}"
+
+        basic_string += " \\\ \hhline{~*\items{|-}|}" + "\n"
+
+    print(basic_string)
+
+#
+# A  & 100   & 0  & 10  & 0   \\ \hhline{~*\items{|-}|}
+# B  & 10   & 80  & 10  & 0 \\ \hhline{~*\items{|-}|}
+# C  & 30   & 0   & 70  & 0 \\ \hhline{~*\items{|-}|}
+# D  & 30   & 0   & 70  & 0 \\ \hhline{~*\items{|-}|}
+# \end{tabular}"
+
+
+def readpgm(name):
+
+    with open(name) as f:
+
+        lines = f.readlines()
+
+    # This ignores commented lines
+
+    for l in list(lines):
+
+        if l[0] == '#':
+
+            lines.remove(l)
+
+    # here,it makes sure it is ASCII format (P2)
+
+    assert lines[0].strip() == 'P2'
+
+    # Converts data to a list of integers
+
+    data = []
+
+    for line in lines[1:]:
+
+        data.extend([int(c) for c in line.split()])
+
+    return (np.array(data[3:]),(data[1],data[0]),data[2])
+
+
+if __name__ == "__main__":
+
+    to_latex_heatmap(3, ["a", "b", "c"], [[411, 75, 14], [53, 436, 11], [3,  28, 469]])

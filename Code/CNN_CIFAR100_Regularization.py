@@ -8,7 +8,7 @@ from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
 import os
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
-    get_classes, get_superclasses
+    get_classes, get_superclasses, accuracy_superclasses
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sn
@@ -42,6 +42,40 @@ class ConvNet(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+
+def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes, weight_decay1=None, weight_decay2=None):
+
+    batch = predicted.size(0)
+
+    # compute the loss for fine classes
+    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
+
+    # define an empty vector which contains 20 superclasses prediction for each samples
+    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
+
+    for k in range(n_superclass):
+        # obtain the indexes of the superclass number k
+        indexes = list(np.where(coarse_labels == k))[0]
+        # for each index, sum all the probability related to that superclass
+        for j in indexes:
+            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+
+    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
+
+    # I take all the w_classes related to the index. so for example a sample which lable is 2 will get the regularizer
+    # in position 2 associated, the same for superclasses
+
+    if weight_decay1 is not None:
+        regularizer1 = w_classes[actual]
+        regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
+
+        # return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+        return loss_fine + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+
+    return loss_fine + loss_coarse
 
 
 def classic_cc(predicted, actual):
@@ -82,7 +116,8 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclass
         regularizer1 = w_classes[actual]
         regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
 
-        return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+        # return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+        return loss_fine + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
 
     return loss_fine + loss_coarse
 
@@ -98,16 +133,17 @@ if __name__ == "__main__":
 
     image_size = 32
 
-    num_epochs = 2000
+    num_epochs = 1000
     batch_size = 128
     learning_rate = 0.001
     early_stopping = 200
 
-    model_name = "..//..//cnn2000.pth"
+    model_name = "..//..//cnn_regularization_half.pth"
     hierarchical_loss = True
-    weight_decay1 = None
-    weight_decay2 = None
+    weight_decay1 = 0.1
+    weight_decay2 = 0.1
     all_superclasses = False
+    less_samples = True
 
     classes_name = get_classes()
 
@@ -126,13 +162,21 @@ if __name__ == "__main__":
     train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
+    if less_samples:
+        evens = list(range(0, len(train_dataset), 2))
+        train_dataset = torch.utils.data.Subset(train_dataset, evens)
+
     dataset = train_val_dataset(train_dataset, val_split=0.15)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
 
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
-    class_names = dataset['train'].dataset.classes
+    if less_samples:
+        class_names = dataset['train'].dataset.dataset.classes
+    else:
+        class_names = dataset['train'].dataset.classes
+
     num_class, num_superclass = len(class_names), len(superclasses)
 
     print(class_names)
@@ -140,19 +184,19 @@ if __name__ == "__main__":
     # Network
     model = ConvNet(num_class).to(device)
 
+    # H is the number of element in the each regulizing vector
+    hidden_dimension = 1024
+    # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
+    # regularizing vector in the tree
+    w_superclasses = Variable(
+        torch.empty(size=(num_superclass, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
+        requires_grad=True)
+    w_classes = Variable(
+        torch.empty(size=(num_class, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
+        requires_grad=True)
+
     # Optimizer
     if weight_decay1 is not None:
-
-        # H is the number of element in the each regulizing vector
-        hidden_dimension = 1024
-        # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
-        # regularizing vector in the tree
-        w_superclasses = Variable(
-            torch.empty(size=(num_superclass, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
-            requires_grad=True)
-        w_classes = Variable(
-            torch.empty(size=(num_class, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
-            requires_grad=True)
 
         optimizer = torch.optim.SGD([
             {'params': model.parameters()},
@@ -167,6 +211,7 @@ if __name__ == "__main__":
     n_total_steps_val = len(val_loader)
 
     best_acc = 0.0
+    associated_sup_acc = 0.0
     platoon = 0
     stop = False
 
@@ -176,7 +221,7 @@ if __name__ == "__main__":
             break
 
         print("Epoch {}/{}".format(epoch + 1, num_epochs))
-        print(f"Best acc: {best_acc:.4f}")
+        print(f"Best acc: {best_acc:.4f}, associate best superclass acc: {associated_sup_acc:.4f}")
         print("-" * 30)
 
         # Each epoch has a training and validation phase
@@ -224,13 +269,16 @@ if __name__ == "__main__":
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-                print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc))
+                acc_super = accuracy_superclasses(outputs, labels, np.asarray(coarse_labels), len(superclasses))
+
+                print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f} Acc Super: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc, acc_super))
 
                 if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc > best_acc:
                     best_acc = epoch_acc
+                    associated_sup_acc = acc_super
                     platoon = 0
                     torch.save(model.state_dict(), model_name)
-                    print("New best accuracy {:.4f}, saving best model".format(best_acc))
+                    print("New best accuracy {:.4f}, superclass accuracy {:.4f}, saving best model".format(best_acc, acc_super))
 
                 if phase == "val" and (i+1) % n_total_steps == 0 and epoch_acc < best_acc:
                     platoon += 1
