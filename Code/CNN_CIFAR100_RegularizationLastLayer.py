@@ -44,17 +44,7 @@ class ConvNet(nn.Module):
         return x
 
 
-def classic_cc(predicted, actual):
-    # sftmax_out = predicted - predicted.exp().sum(-1).log().unsqueeze(-1) #sftmx = F.log_softmax(predicted, dim=1)
-    # actual_onehot = F.one_hot(actual)
-    # out1 = actual_onehot * sftmx_out
-    # loss = torch.sum(-out1)
-
-    # or
-    return torch.sum(-F.one_hot(actual) * (predicted - predicted.exp().sum(-1).log().unsqueeze(-1)))
-
-
-def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclasses, w_classes, weight_decay1=None, weight_decay2=None):
+def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, weight_decay1=None, weight_decay2=None):
 
     batch = predicted.size(0)
 
@@ -75,17 +65,18 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_superclass, w_superclass
 
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
 
-    # I take all the w_classes related to the index. so for example a sample which lable is 2 will get the regularizer
-    # in position 2 associated, the same for superclasses
+    # creo dei vettori cosi: se la pred è [1, 6, 12] allora creo 5 uno [0, 5, 10], uno [1, 6, 11] e cosi in modo che posso prelevare tutti i pesi
+    all_actual = []
+    for i in range(n_class):
+        all_actual.append(actual_coarse * n_class + i)
 
-    if weight_decay1 is not None:
-        regularizer1 = w_classes[actual]
-        regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
+    for i, a in enumerate(all_actual):
+        if i == 0:
+            phi2 = model.fc3.weight.data[a]
+        else:
+            phi2 += model.fc3.weight.data[a]
 
-        # return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
-        return loss_fine + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
-
-    return loss_fine + loss_coarse
+    return loss_fine + weight_decay1 * torch.linalg.norm(model.fc3.weight.data[actual]) + weight_decay2 * torch.linalg.norm(phi2)
 
 
 if __name__ == "__main__":
@@ -99,17 +90,17 @@ if __name__ == "__main__":
 
     image_size = 32
 
-    num_epochs = 1000
+    num_epochs = 2000
     batch_size = 128
     learning_rate = 0.001
-    early_stopping = 200
+    early_stopping = 400
 
-    model_name = "..//..//cnn_regularization_half.pth"
+    model_name = "..//..//cnn_reg_lastlayer.pth"
     hierarchical_loss = True
     weight_decay1 = 0.1
     weight_decay2 = 0.1
     all_superclasses = False
-    less_samples = True
+    less_samples = False
 
     classes_name = get_classes()
 
@@ -150,26 +141,7 @@ if __name__ == "__main__":
     # Network
     model = ConvNet(num_class).to(device)
 
-    # H is the number of element in the each regulizing vector
-    hidden_dimension = 1024
-    # define one (num_superclass, H) vector and (num_class, H) vector, each one contains the values for each
-    # regularizing vector in the tree
-    w_superclasses = Variable(
-        torch.empty(size=(num_superclass, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
-        requires_grad=True)
-    w_classes = Variable(
-        torch.empty(size=(num_class, hidden_dimension)).normal_(mean=0, std=1.0).type(torch.FloatTensor),
-        requires_grad=True)
-
-    # Optimizer
-    if weight_decay1 is not None:
-
-        optimizer = torch.optim.SGD([
-            {'params': model.parameters()},
-            {'params': [w_superclasses, w_classes]}
-        ], lr=learning_rate)
-    else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     criterion = nn.CrossEntropyLoss(reduction="mean")
 
@@ -218,8 +190,8 @@ if __name__ == "__main__":
                     _, preds = torch.max(outputs, 1)
 
                     if hierarchical_loss:
-                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), len(superclasses),
-                                               w_superclasses, w_classes, weight_decay1=None, weight_decay2=None)
+                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(num_class/num_superclass), num_superclass,
+                                               model, weight_decay1=weight_decay1, weight_decay2=weight_decay2)
                     else:
                         loss = F.cross_entropy(outputs, labels, reduction="mean")
 
