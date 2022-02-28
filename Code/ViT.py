@@ -1,47 +1,16 @@
-from torch.autograd import Variable
 import torch
-import torchvision
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
-import os
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses, accuracy_superclasses
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
-
-
-class ConvNet(nn.Module):
-    def __init__(self, num_classes):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding="same")
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding="same")
-        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding="same")
-        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding="same")
-        self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(512 * 2 * 2, 4096)
-        self.fc2 = nn.Linear(4096, 2048)
-        self.fc3 = nn.Linear(2048, num_classes)
-
-    def forward(self, x):
-
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)
-        x = F.relu(self.conv3(x))
-        x = self.pool(x)
-        x = F.relu(self.conv4(x))
-        x = self.pool(x)
-        x = x.view(-1, 512 * 2 * 2)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+from transformers import ViTFeatureExtractor, ViTModel, ViTForImageClassification
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, weight_decay1=None, weight_decay2=None):
@@ -66,42 +35,42 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
 
     # creo dei vettori cosi: se la pred è [1, 6, 12] allora creo 5 uno [0, 5, 10], uno [1, 6, 11] e cosi in modo che posso prelevare tutti i pesi
-    all_actual = []
-    for i in range(n_class):
-        all_actual.append(actual_coarse * n_class + i)
+    # all_actual = []
+    # for i in range(n_class):
+    #     all_actual.append(actual_coarse * n_class + i)
+    #
+    # # sum all vector
+    # for i, a in enumerate(all_actual):
+    #     if i == 0:
+    #         phi2 = model.fc3.weight.data[a]
+    #     else:
+    #         phi2 += model.fc3.weight.data[a]
 
-    # sum all vector
-    for i, a in enumerate(all_actual):
-        if i == 0:
-            phi2 = model.fc3.weight.data[a]
-        else:
-            phi2 += model.fc3.weight.data[a]
-
-    return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(model.fc3.weight.data[actual]) + weight_decay2 * torch.linalg.norm(phi2)
+    return loss_fine + loss_coarse # + weight_decay1 * torch.linalg.norm(model.fc3.weight.data[actual]) + weight_decay2 * torch.linalg.norm(phi2)
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), Resize(size=(224, 224))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
     image_size = 32
 
-    num_epochs = 2000
-    batch_size = 128
+    num_epochs = 1000
+    batch_size = 32
     learning_rate = 0.001
-    early_stopping = 400
+    early_stopping = 200
 
-    model_name = "..//..//cnn_hloss_reg_lastlayer.pth"
-    hierarchical_loss = True
+    model_name = "..//..//vitl16-1on8.pth"
+    hierarchical_loss = False
     weight_decay1 = 0.1
     weight_decay2 = 0.1
     all_superclasses = False
-    less_samples = False
+    less_samples = True
 
     classes_name = get_classes()
 
@@ -121,7 +90,7 @@ if __name__ == "__main__":
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
     if less_samples:
-        evens = list(range(0, len(train_dataset), 2))
+        evens = list(range(0, len(train_dataset), 8))
         train_dataset = torch.utils.data.Subset(train_dataset, evens)
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
@@ -140,7 +109,11 @@ if __name__ == "__main__":
     print(class_names)
 
     # Network
-    model = ConvNet(num_class).to(device)
+
+    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
+    num_ftrs = model.classifier.in_features  # input features for the last layers
+    model.classifier = nn.Linear(num_ftrs, out_features=num_class)  # we have 2 classes now
+    model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
@@ -187,7 +160,7 @@ if __name__ == "__main__":
                 # track history only if train
                 with torch.set_grad_enabled(phase == "train"):
 
-                    outputs = model(images)
+                    outputs = model(images).logits
                     _, preds = torch.max(outputs, 1)
 
                     if hierarchical_loss:

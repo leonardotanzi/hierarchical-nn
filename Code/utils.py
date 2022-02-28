@@ -87,7 +87,6 @@ def get_classes():
              'bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train',
              'lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
 
-
 def get_superclasses():
     return ['aquatic mammals', 'fish', 'flowers', 'food containers', 'fruit and vegetables',
             'household electrical devices', 'household furniture','insects',
