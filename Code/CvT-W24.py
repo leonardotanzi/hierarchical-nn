@@ -1,3 +1,4 @@
+from vit_pytorch.cvt import CvT
 import torch
 import torch.nn as nn
 import numpy as np
@@ -60,17 +61,19 @@ if __name__ == "__main__":
 
     image_size = 32
 
-    num_epochs = 1000
+    num_epochs = 200
     batch_size = 32
     learning_rate = 0.001
     early_stopping = 200
 
-    model_name = "..//..//vitl16-1on8.pth"
     hierarchical_loss = False
     weight_decay1 = 0.1
     weight_decay2 = 0.1
-    all_superclasses = False
+    all_superclasses = True
     less_samples = True
+    reduction_factor = 1
+
+    model_name = "..//..//cvt-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//cvt-1on{}-all.pth".format(reduction_factor)
 
     classes_name = get_classes()
 
@@ -90,7 +93,7 @@ if __name__ == "__main__":
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
     if less_samples:
-        evens = list(range(0, len(train_dataset), 8))
+        evens = list(range(0, len(train_dataset), reduction_factor))
         train_dataset = torch.utils.data.Subset(train_dataset, evens)
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
@@ -109,10 +112,64 @@ if __name__ == "__main__":
     print(class_names)
 
     # Network
+    #this run just with batch 4
+    # model = CvT(
+    #     num_classes=num_class,
+    #     s1_emb_dim=192,  # stage 1 - dimension
+    #     s1_emb_kernel=7,  # stage 1 - conv kernel
+    #     s1_emb_stride=4,  # stage 1 - conv stride
+    #     s1_proj_kernel=3,  # stage 1 - attention ds-conv kernel size
+    #     s1_kv_proj_stride=2,  # stage 1 - attention key / value projection stride
+    #     s1_heads=2,  # stage 1 - heads
+    #     s1_depth=2,  # stage 1 - depth
+    #     s1_mlp_mult=4,  # stage 1 - feedforward expansion factor
+    #     s2_emb_dim=768,  # stage 2 - (same as above)
+    #     s2_emb_kernel=3,
+    #     s2_emb_stride=2,
+    #     s2_proj_kernel=3,
+    #     s2_kv_proj_stride=2,
+    #     s2_heads=12,
+    #     s2_depth=2,
+    #     s2_mlp_mult=4,
+    #     s3_emb_dim=1024,  # stage 3 - (same as above)
+    #     s3_emb_kernel=3,
+    #     s3_emb_stride=2,
+    #     s3_proj_kernel=3,
+    #     s3_kv_proj_stride=2,
+    #     s3_heads=16,
+    #     s3_depth=20,
+    #     s3_mlp_mult=4,
+    #     dropout=0.
+    # )
+    model = CvT(
+        num_classes=num_class,
+        s1_emb_dim=64,  # stage 1 - dimension
+        s1_emb_kernel=7,  # stage 1 - conv kernel
+        s1_emb_stride=4,  # stage 1 - conv stride
+        s1_proj_kernel=3,  # stage 1 - attention ds-conv kernel size
+        s1_kv_proj_stride=2,  # stage 1 - attention key / value projection stride
+        s1_heads=1,  # stage 1 - heads
+        s1_depth=1,  # stage 1 - depth
+        s1_mlp_mult=4,  # stage 1 - feedforward expansion factor
+        s2_emb_dim=192,  # stage 2 - (same as above)
+        s2_emb_kernel=3,
+        s2_emb_stride=2,
+        s2_proj_kernel=3,
+        s2_kv_proj_stride=2,
+        s2_heads=3,
+        s2_depth=2,
+        s2_mlp_mult=4,
+        s3_emb_dim=384,  # stage 3 - (same as above)
+        s3_emb_kernel=3,
+        s3_emb_stride=2,
+        s3_proj_kernel=3,
+        s3_kv_proj_stride=2,
+        s3_heads=4,
+        s3_depth=10,
+        s3_mlp_mult=4,
+        dropout=0.
+    )
 
-    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
-    num_ftrs = model.classifier.in_features  # input features for the last layers
-    model.classifier = nn.Linear(num_ftrs, out_features=num_class)  # we have 2 classes now
     model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
@@ -160,7 +217,7 @@ if __name__ == "__main__":
                 # track history only if train
                 with torch.set_grad_enabled(phase == "train"):
 
-                    outputs = model(images).logits
+                    outputs = model(images)
                     _, preds = torch.max(outputs, 1)
 
                     if hierarchical_loss:
@@ -211,7 +268,7 @@ if __name__ == "__main__":
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        output = model(inputs)  # Feed Network
+        output = model(inputs).logits  # Feed Network
 
         output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
         y_pred.extend(output)  # Save Prediction
@@ -222,7 +279,3 @@ if __name__ == "__main__":
     # Build confusion matrix
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
-    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names], columns=[i for i in class_names])
-    plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, annot=True)
-    plt.savefig("output.png")
