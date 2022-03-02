@@ -117,7 +117,7 @@ if __name__ == "__main__":
     model.classifier = nn.Linear(num_ftrs, out_features=num_class)  # we have 2 classes now
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
 
     criterion = nn.CrossEntropyLoss(reduction="mean")
 

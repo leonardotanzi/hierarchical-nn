@@ -46,18 +46,18 @@ if __name__ == "__main__":
     image_size = 32
 
     num_epochs = 300
-    batch_size = 16
+    batch_size = 24
     learning_rate = 0.001
     early_stopping = 200
 
-    hierarchical_loss = True
+    hierarchical_loss = False
     weight_decay1 = 0.1
     weight_decay2 = 0.1
     all_superclasses = True
     less_samples = True
-    reduction_factor = 64
+    reduction_factor = 1
 
-    model_name = "..//..//cvt-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//cvt-1on{}-all.pth".format(reduction_factor)
+    model_name = "..//..//cvtW24-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//cvtW24-1on{}-all.pth".format(reduction_factor)
 
     classes_name = get_classes()
 
@@ -154,9 +154,9 @@ if __name__ == "__main__":
     #     dropout=0.
     # )
 
-    model.load_state_dict(torch.load("..\\..\\CvT-w24-384x384-IN-22k.pth", map_location="cpu"), strict=False)
+    model.load_state_dict(torch.load("..\\..\\pre-trained\\CvT-w24-384x384-IN-22k.pth", map_location="cpu"), strict=False)
 
-    # model.load_state_dict(torch.load("..\\..\\CvT-21-224x224-IN-1k.pth", map_location="cpu"), strict=False)
+    # model.load_state_dict(torch.load("..\\..\\pre-trained\\CvT-21-224x224-IN-1k.pth", map_location="cpu"), strict=False)
 
     model.to(device)
 
