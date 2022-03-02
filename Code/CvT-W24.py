@@ -8,10 +8,6 @@ import torch.nn.functional as F
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses, accuracy_superclasses
 from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sn
-import pandas as pd
-from transformers import ViTFeatureExtractor, ViTModel, ViTForImageClassification
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, weight_decay1=None, weight_decay2=None):
@@ -35,18 +31,6 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
 
     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
 
-    # creo dei vettori cosi: se la pred è [1, 6, 12] allora creo 5 uno [0, 5, 10], uno [1, 6, 11] e cosi in modo che posso prelevare tutti i pesi
-    # all_actual = []
-    # for i in range(n_class):
-    #     all_actual.append(actual_coarse * n_class + i)
-    #
-    # # sum all vector
-    # for i, a in enumerate(all_actual):
-    #     if i == 0:
-    #         phi2 = model.fc3.weight.data[a]
-    #     else:
-    #         phi2 += model.fc3.weight.data[a]
-
     return loss_fine + loss_coarse # + weight_decay1 * torch.linalg.norm(model.fc3.weight.data[actual]) + weight_decay2 * torch.linalg.norm(phi2)
 
 
@@ -61,8 +45,8 @@ if __name__ == "__main__":
 
     image_size = 32
 
-    num_epochs = 200
-    batch_size = 32
+    num_epochs = 300
+    batch_size = 16
     learning_rate = 0.001
     early_stopping = 200
 
@@ -113,66 +97,70 @@ if __name__ == "__main__":
 
     # Network
     #this run just with batch 4
-    # model = CvT(
-    #     num_classes=num_class,
-    #     s1_emb_dim=192,  # stage 1 - dimension
-    #     s1_emb_kernel=7,  # stage 1 - conv kernel
-    #     s1_emb_stride=4,  # stage 1 - conv stride
-    #     s1_proj_kernel=3,  # stage 1 - attention ds-conv kernel size
-    #     s1_kv_proj_stride=2,  # stage 1 - attention key / value projection stride
-    #     s1_heads=2,  # stage 1 - heads
-    #     s1_depth=2,  # stage 1 - depth
-    #     s1_mlp_mult=4,  # stage 1 - feedforward expansion factor
-    #     s2_emb_dim=768,  # stage 2 - (same as above)
-    #     s2_emb_kernel=3,
-    #     s2_emb_stride=2,
-    #     s2_proj_kernel=3,
-    #     s2_kv_proj_stride=2,
-    #     s2_heads=12,
-    #     s2_depth=2,
-    #     s2_mlp_mult=4,
-    #     s3_emb_dim=1024,  # stage 3 - (same as above)
-    #     s3_emb_kernel=3,
-    #     s3_emb_stride=2,
-    #     s3_proj_kernel=3,
-    #     s3_kv_proj_stride=2,
-    #     s3_heads=16,
-    #     s3_depth=20,
-    #     s3_mlp_mult=4,
-    #     dropout=0.
-    # )
     model = CvT(
         num_classes=num_class,
-        s1_emb_dim=64,  # stage 1 - dimension
+        s1_emb_dim=192,  # stage 1 - dimension
         s1_emb_kernel=7,  # stage 1 - conv kernel
         s1_emb_stride=4,  # stage 1 - conv stride
         s1_proj_kernel=3,  # stage 1 - attention ds-conv kernel size
         s1_kv_proj_stride=2,  # stage 1 - attention key / value projection stride
-        s1_heads=1,  # stage 1 - heads
-        s1_depth=1,  # stage 1 - depth
+        s1_heads=2,  # stage 1 - heads
+        s1_depth=2,  # stage 1 - depth
         s1_mlp_mult=4,  # stage 1 - feedforward expansion factor
-        s2_emb_dim=192,  # stage 2 - (same as above)
+        s2_emb_dim=768,  # stage 2 - (same as above)
         s2_emb_kernel=3,
         s2_emb_stride=2,
         s2_proj_kernel=3,
         s2_kv_proj_stride=2,
-        s2_heads=3,
+        s2_heads=12,
         s2_depth=2,
         s2_mlp_mult=4,
-        s3_emb_dim=384,  # stage 3 - (same as above)
+        s3_emb_dim=1024,  # stage 3 - (same as above)
         s3_emb_kernel=3,
         s3_emb_stride=2,
         s3_proj_kernel=3,
         s3_kv_proj_stride=2,
-        s3_heads=4,
-        s3_depth=10,
+        s3_heads=16,
+        s3_depth=20,
         s3_mlp_mult=4,
         dropout=0.
     )
+    # model = CvT(
+    #     num_classes=num_class,
+    #     s1_emb_dim=64,  # stage 1 - dimension
+    #     s1_emb_kernel=7,  # stage 1 - conv kernel
+    #     s1_emb_stride=4,  # stage 1 - conv stride
+    #     s1_proj_kernel=3,  # stage 1 - attention ds-conv kernel size
+    #     s1_kv_proj_stride=2,  # stage 1 - attention key / value projection stride
+    #     s1_heads=1,  # stage 1 - heads
+    #     s1_depth=1,  # stage 1 - depth
+    #     s1_mlp_mult=4,  # stage 1 - feedforward expansion factor
+    #     s2_emb_dim=192,  # stage 2 - (same as above)
+    #     s2_emb_kernel=3,
+    #     s2_emb_stride=2,
+    #     s2_proj_kernel=3,
+    #     s2_kv_proj_stride=2,
+    #     s2_heads=3,
+    #     s2_depth=4,
+    #     s2_mlp_mult=4,
+    #     s3_emb_dim=384,  # stage 3 - (same as above)
+    #     s3_emb_kernel=3,
+    #     s3_emb_stride=2,
+    #     s3_proj_kernel=3,
+    #     s3_kv_proj_stride=2,
+    #     s3_heads=4,
+    #     s3_depth=16,
+    #     s3_mlp_mult=4,
+    #     dropout=0.
+    # )
+
+    model.load_state_dict(torch.load("..\\..\\CvT-w24-384x384-IN-22k.pth", map_location="cpu"), strict=False)
+
+    # model.load_state_dict(torch.load("..\\..\\CvT-21-224x224-IN-1k.pth", map_location="cpu"), strict=False)
 
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), momentum=0.9, lr=learning_rate)
 
     criterion = nn.CrossEntropyLoss(reduction="mean")
 
