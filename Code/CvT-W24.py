@@ -66,12 +66,12 @@ if __name__ == "__main__":
     learning_rate = 0.001
     early_stopping = 200
 
-    hierarchical_loss = False
+    hierarchical_loss = True
     weight_decay1 = 0.1
     weight_decay2 = 0.1
     all_superclasses = True
     less_samples = True
-    reduction_factor = 1
+    reduction_factor = 64
 
     model_name = "..//..//cvt-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//cvt-1on{}-all.pth".format(reduction_factor)
 
