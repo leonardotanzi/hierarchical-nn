@@ -4,6 +4,7 @@ import torchvision
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
+from torchvision import models
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
 import os
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = Compose([ToTensor(), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), Resize(size=(224,224))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
@@ -56,12 +57,12 @@ if __name__ == "__main__":
     image_size = 32
 
     num_epochs = 2000
-    batch_size = 128
+    batch_size = 8
     learning_rate = 0.001
     early_stopping = 400
 
-    model_name = "..//..//cnn_reg_betas.pth"
-    hierarchical_loss = True
+    model_name = "..//..//effnet.pth"
+    hierarchical_loss = False
     weight_decay1 = 0.1
     weight_decay2 = 0.1
     all_superclasses = False
@@ -106,7 +107,12 @@ if __name__ == "__main__":
     # Network
     model = ConvNet(num_class).to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    model = models.efficientnet_b6(pretrained=True)
+    num_ftrs = model.classifier._modules['1'].in_features  # input features for the last layers
+    model.classifier._modules['1'].in_features = nn.Linear(num_ftrs, out_features=num_class)  # we have 2 classes now
+    model.to(device)
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
 
     criterion = nn.CrossEntropyLoss(reduction="mean")
 

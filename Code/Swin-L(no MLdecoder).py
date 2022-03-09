@@ -6,45 +6,9 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
 from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
-    get_classes, get_superclasses, accuracy_superclasses
+    get_classes, get_superclasses, accuracy_superclasses, hierarchical_cc
 from sklearn.metrics import confusion_matrix
 from MLDecoder import MLDecoder, add_ml_decoder_head
-
-
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, weight_decay1=None, weight_decay2=None):
-
-    batch = predicted.size(0)
-
-    # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
-
-    # define an empty vector which contains 20 superclasses prediction for each samples
-    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
-
-    for k in range(n_superclass):
-        # obtain the indexes of the superclass number k
-        indexes = list(np.where(coarse_labels == k))[0]
-        # for each index, sum all the probability related to that superclass
-        for j in indexes:
-            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
-
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-
-    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
-
-    # creo dei vettori cosi: se la pred è [1, 6, 12] allora creo 5 uno [0, 5, 10], uno [1, 6, 11] e cosi in modo che posso prelevare tutti i pesi
-    # all_actual = []
-    # for i in range(n_class):
-    #     all_actual.append(actual_coarse * n_class + i)
-    #
-    # # sum all vector
-    # for i, a in enumerate(all_actual):
-    #     if i == 0:
-    #         phi2 = model.fc3.weight.data[a]
-    #     else:
-    #         phi2 += model.fc3.weight.data[a]
-
-    return loss_fine + loss_coarse # + weight_decay1 * torch.linalg.norm(model.fc3.weight.data[actual]) + weight_decay2 * torch.linalg.norm(phi2)
 
 
 if __name__ == "__main__":
@@ -72,7 +36,7 @@ if __name__ == "__main__":
 
     ml_decoder = True
 
-    model_name = "..//..//cvt-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//cvt-1on{}-all.pth".format(reduction_factor)
+    model_name = "..//..//swin-hloss-1on{}-all.pth".format(reduction_factor) if hierarchical_loss else "..//..//swin-1on{}-all.pth".format(reduction_factor)
 
     classes_name = get_classes()
 
@@ -134,7 +98,6 @@ if __name__ == "__main__":
         window_size=7,
         downscaling_factors=(4, 2, 2, 2),
         relative_pos_embedding=False)
-
 
     if ml_decoder:
         ml_decoder_head = MLDecoder(num_class).to(device)
