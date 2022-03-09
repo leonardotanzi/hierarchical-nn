@@ -11,47 +11,46 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
+from torchsummary import summary
+from torch.utils.tensorboard import SummaryWriter
+import os
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), Resize(size=(224,224))])
+    transform = Compose([ToTensor(), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])  #, Resize(size=(224,224))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    image_size = 32
-
-    num_epochs = 1000
-    batch_size = 8
+    num_epochs = 200
+    batch_size = 128
     learning_rate = 0.001
     early_stopping = 200
 
-    model_name = "..//..//effnet.pth"
+    model_name = "..//..//resnet.pth"
+    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
     hierarchical_loss = False
+    regularization = False
+
     weight_decay1 = 0.1
     weight_decay2 = 0.1
-    all_superclasses = False
     less_samples = False
 
-    classes_name = get_classes()
+    classes = get_classes()
 
-    if not all_superclasses:
-        # read superclasses, you can manually select some or get all with get_superclasses()
-        superclasses = ["flowers", "fruit and vegetables", "trees"]
-    else:
-        superclasses = get_superclasses()
+    superclasses = get_superclasses()
 
     # given the list of superclasses, returns the class to exclude and the coarse label
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
 
-    classes_name.append(excluded)
+    classes.append(excluded)
 
     # take as input a list of list with the first element being the classes_name and the second the classes to exclude
-    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes_name, transform=transform)
-    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes, transform=transform)
+    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes, transform=transform)
 
     if less_samples:
         evens = list(range(0, len(train_dataset), 2))
@@ -63,24 +62,28 @@ if __name__ == "__main__":
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
 
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
-    if less_samples:
-        class_names = dataset['train'].dataset.dataset.classes
-    else:
-        class_names = dataset['train'].dataset.classes
 
-    num_class, num_superclass = len(class_names), len(superclasses)
+    num_class, num_superclass = len(classes[0]), len(superclasses)
 
-    print(class_names)
+    print(dataset_sizes)
+    print(classes[0])
 
-    # Network
-    model = models.efficientnet_b6(pretrained=True)
-    num_ftrs = model.classifier._modules['1'].in_features  # input features for the last layers
-    model.classifier._modules['1'] = nn.Linear(num_ftrs, out_features=num_class)  # we have 2 classes now
+    # Import resnet and change last layer
+    model = models.resnet18(pretrained=True)
+    num_ftrs = model.fc.in_features  # input features for the last layers
+    model.fc = nn.Linear(num_ftrs, out_features=num_class)
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+    # print model summary
+    print(summary(model, (3, 32, 32)))
 
-    criterion = nn.CrossEntropyLoss(reduction="mean")
+    # add model structure to tensorboard
+    dataiter = iter(train_loader)
+    images, labels = dataiter.next()
+    writer.add_graph(model, images.to(device))
+
+    # define optimizer
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -126,11 +129,9 @@ if __name__ == "__main__":
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
 
-                    if hierarchical_loss:
-                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(num_class/num_superclass), num_superclass,
-                                               model, device, weight_decay1=weight_decay1, weight_decay2=weight_decay2)
-                    else:
-                        loss = F.cross_entropy(outputs, labels, reduction="mean")
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(num_class/num_superclass),
+                                           num_superclass, model, device, hierarchical_loss, regularization,
+                                           weight_decay1=weight_decay1, weight_decay2=weight_decay2)
 
                     # backward + optimize if training
                     if phase == "train":
@@ -140,6 +141,16 @@ if __name__ == "__main__":
 
                     running_loss += loss.item() * images.size(0)
                     running_corrects += torch.sum(preds == labels.data)
+
+                    # tensorboard
+                    if phase == "train":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    elif phase == "val":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]

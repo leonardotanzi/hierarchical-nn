@@ -11,48 +11,52 @@ import torch.nn.functional as F
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, weight_decay1=None, weight_decay2=None):
+def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, hierarchical_loss, regularization, weight_decay1=None, weight_decay2=None):
 
     batch = predicted.size(0)
 
     # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
+    loss = F.cross_entropy(predicted, actual, reduction="mean")
 
-    # define an empty vector which contains 20 superclasses prediction for each samples
-    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
+    if hierarchical_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
 
-    for k in range(n_superclass):
-        # obtain the indexes of the superclass number k
-        indexes = list(np.where(coarse_labels == k))[0]
-        # for each index, sum all the probability related to that superclass
-        for j in indexes:
-            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+        for k in range(n_superclass):
+            # obtain the indexes of the superclass number k
+            indexes = list(np.where(coarse_labels == k))[0]
+            # for each index, sum all the probability related to that superclass
+            for j in indexes:
+                predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+        actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
 
-    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
+        loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
+        loss += loss_coarse
 
-    beta = model.fc3.weight.data
+    if regularization:
+        beta = model.fc3.weight.data
 
-    # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque clasi,
-    # secondi cinque delle seconde cinque classi e cosi via
+        # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque clasi,
+        # secondi cinque delle seconde cinque classi e cosi via
 
-    for i in range(n_superclass):
-        if i == 0:
-            mean_betas = torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
-        else:
-            mean_betas = torch.cat((mean_betas, torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
+        for i in range(n_superclass):
+            if i == 0:
+                mean_betas = torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
+            else:
+                mean_betas = torch.cat((mean_betas, torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
 
-    fine_penalty = torch.sum(torch.linalg.norm(beta - mean_betas, dim=1))
+        fine_penalty = torch.sum(torch.linalg.norm(beta - mean_betas, dim=1))
 
-    for i in range(0, n_superclass):
-        if i == 0:
-            coarse_penalty = torch.linalg.norm(torch.sum(beta[i:i+n_class], dim=0))
-        else:
-            coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
+        for i in range(n_superclass):
+            if i == 0:
+                coarse_penalty = torch.linalg.norm(torch.sum(beta[i:i+n_class], dim=0))
+            else:
+                coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
 
-    return loss_fine + loss_coarse + weight_decay1 * fine_penalty + weight_decay2 * coarse_penalty
-    # return loss_fine + weight_decay1 * fine_penalty + weight_decay2 * coarse_penalty
+        loss += weight_decay1 * fine_penalty + weight_decay2 * coarse_penalty
+
+    return loss
 
 
 class ClassSpecificImageFolder(datasets.DatasetFolder):
