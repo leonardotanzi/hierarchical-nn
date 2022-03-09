@@ -25,14 +25,14 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    num_epochs = 200
+    num_epochs = 100
     batch_size = 128
     learning_rate = 0.001
     early_stopping = 200
 
-    model_name = "..//..//resnet.pth"
+    model_name = "..//..//resnet_hloss.pth"
     writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
-    hierarchical_loss = False
+    hierarchical_loss = True
     regularization = False
 
     weight_decay1 = 0.1
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     # Build confusion matrix
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
-    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names], columns=[i for i in class_names])
+    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in classes], columns=[i for i in classes])
     plt.figure(figsize=(12, 7))
     sn.heatmap(df_cm, annot=True)
     plt.savefig("output.png")
