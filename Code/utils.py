@@ -11,7 +11,7 @@ import torch.nn.functional as F
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, hierarchical_loss, regularization, weight_decay1=None, weight_decay2=None):
+def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, hierarchical_loss, regularization, weight_decay=None):
 
     batch = predicted.size(0)
 
@@ -35,7 +35,7 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
         loss += loss_coarse
 
     if regularization:
-        beta = model.fc3.weight.data
+        beta = model.fc.weight.data
 
         # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque clasi,
         # secondi cinque delle seconde cinque classi e cosi via
@@ -54,7 +54,7 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
             else:
                 coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
 
-        loss += weight_decay1 * fine_penalty + weight_decay2 * coarse_penalty
+        loss += weight_decay * (fine_penalty + coarse_penalty)
 
     return loss
 

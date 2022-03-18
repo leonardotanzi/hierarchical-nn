@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
-from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
+from utils import ClassSpecificImageFolderNotAlphabetic, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses, accuracy_superclasses, hierarchical_cc
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
@@ -20,24 +20,34 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])  #, Resize(size=(224,224))])
+    transform = Compose([ToTensor(), Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])  #, Resize(size=(224,224))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    num_epochs = 100
+    num_epochs = 250
     batch_size = 128
     learning_rate = 0.001
     early_stopping = 200
 
-    model_name = "..//..//resnet_hloss.pth"
-    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
     hierarchical_loss = True
-    regularization = False
+    regularization = True
 
     weight_decay1 = 0.1
     weight_decay2 = 0.1
-    less_samples = False
+    less_samples = True
+    reduction_factor = 2
+
+    if hierarchical_loss and not regularization:
+        model_name = "..//..//resnet_hloss_1on{}.pth".format(reduction_factor)
+    elif regularization and not hierarchical_loss:
+        model_name = "..//..//resnet_reg_1on{}.pth".format(reduction_factor)
+    elif regularization and hierarchical_loss:
+        model_name = "..//..//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
+    else:
+        model_name = "..//..//resnet_1on{}.pth".format(reduction_factor)
+
+    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
 
     classes = get_classes()
 
@@ -53,7 +63,7 @@ if __name__ == "__main__":
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes, transform=transform)
 
     if less_samples:
-        evens = list(range(0, len(train_dataset), 2))
+        evens = list(range(0, len(train_dataset), reduction_factor))
         train_dataset = torch.utils.data.Subset(train_dataset, evens)
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
@@ -83,7 +93,7 @@ if __name__ == "__main__":
     writer.add_graph(model, images.to(device))
 
     # define optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -100,7 +110,7 @@ if __name__ == "__main__":
 
         print("Epoch {}/{}".format(epoch + 1, num_epochs))
         print(f"Best acc: {best_acc:.4f}, associate best superclass acc: {associated_sup_acc:.4f}")
-        print("-" * 30)
+        print("-" * 200)
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
@@ -142,15 +152,15 @@ if __name__ == "__main__":
                     running_loss += loss.item() * images.size(0)
                     running_corrects += torch.sum(preds == labels.data)
 
-                    # tensorboard
-                    if phase == "train":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
-                    elif phase == "val":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    # # tensorboard
+                    # if phase == "train":
+                    #     if (i+1) % n_total_steps == 0:
+                    #         writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                    #         writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    # elif phase == "val":
+                    #     if (i+1) % n_total_steps == 0:
+                    #         writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                    #         writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]

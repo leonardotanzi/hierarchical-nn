@@ -13,35 +13,43 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
+from torchvision import models
+from torchsummary import summary
+from torch.utils.tensorboard import SummaryWriter
 
 
-class ConvNet(nn.Module):
-    def __init__(self, num_classes):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding="same")
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding="same")
-        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding="same")
-        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding="same")
-        self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(512 * 2 * 2, 4096)
-        self.fc2 = nn.Linear(4096, 2048)
-        self.fc3 = nn.Linear(2048, num_classes)
-
-    def forward(self, x):
-
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)
-        x = F.relu(self.conv3(x))
-        x = self.pool(x)
-        x = F.relu(self.conv4(x))
-        x = self.pool(x)
-        x = x.view(-1, 512 * 2 * 2)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+# def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, hierarchical_loss=True, regularization=True, weight_decay1=None, weight_decay2=None):
+#
+#     batch = predicted.size(0)
+#
+#     # compute the loss for fine classes
+#     loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
+#
+#     # define an empty vector which contains 20 superclasses prediction for each samples
+#     predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
+#
+#     for k in range(n_superclass):
+#         # obtain the indexes of the superclass number k
+#         indexes = list(np.where(coarse_labels == k))[0]
+#         # for each index, sum all the probability related to that superclass
+#         for j in indexes:
+#             predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+#
+#     actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+#
+#     loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
+#
+#     # I take all the w_classes related to the index. so for example a sample which lable is 2 will get the regularizer
+#     # in position 2 associated, the same for superclasses
+#
+#     # if weight_decay1 is not None:
+#     #     regularizer1 = w_classes[actual]
+#     #     regularizer2 = w_superclasses[torch.from_numpy(actual_coarse).type(torch.int64)]
+#     #
+#     #     # return loss_fine + loss_coarse + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+#     #     return loss_fine + weight_decay1 * torch.linalg.norm(regularizer1) + weight_decay2 * torch.linalg.norm(regularizer2)
+#
+#     return loss_fine + loss_coarse
 
 
 if __name__ == "__main__":
@@ -53,19 +61,29 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
-    image_size = 32
-
-    num_epochs = 2000
+    num_epochs = 200
     batch_size = 128
     learning_rate = 0.001
     early_stopping = 400
 
-    model_name = "..//..//cnn_reg_betas.pth"
     hierarchical_loss = True
-    weight_decay1 = 0.1
-    weight_decay2 = 0.1
-    all_superclasses = False
-    less_samples = False
+    regularization = True
+    weight_decay = 0.05
+    all_superclasses = True
+    less_samples = True
+    reduction_factor = 16
+
+    if hierarchical_loss and not regularization:
+        model_name = "..//..//resnet_hloss_1on{}.pth".format(reduction_factor)
+    elif regularization and not hierarchical_loss:
+        model_name = "..//..//resnet_reg_1on{}.pth".format(reduction_factor)
+    elif regularization and hierarchical_loss:
+        model_name = "..//..//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
+    else:
+        model_name = "..//..//resnet_1on{}.pth".format(reduction_factor)
+
+
+    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
 
     classes_name = get_classes()
 
@@ -85,7 +103,7 @@ if __name__ == "__main__":
     test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes_name, transform=transform)
 
     if less_samples:
-        evens = list(range(0, len(train_dataset), 2))
+        evens = list(range(0, len(train_dataset), reduction_factor))
         train_dataset = torch.utils.data.Subset(train_dataset, evens)
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
@@ -104,11 +122,17 @@ if __name__ == "__main__":
     print(class_names)
 
     # Network
-    model = ConvNet(num_class).to(device)
+    model = models.resnet18(pretrained=True)
+    num_ftrs = model.fc.in_features  # input features for the last layers
+    model.fc = nn.Linear(num_ftrs, out_features=num_class)
+    model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    print(summary(model, (3, 32, 32)))
 
-    criterion = nn.CrossEntropyLoss(reduction="mean")
+    if not regularization:
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.1)
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -125,7 +149,7 @@ if __name__ == "__main__":
 
         print("Epoch {}/{}".format(epoch + 1, num_epochs))
         print(f"Best acc: {best_acc:.4f}, associate best superclass acc: {associated_sup_acc:.4f}")
-        print("-" * 30)
+        print("-" * 200)
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
@@ -154,11 +178,8 @@ if __name__ == "__main__":
                     outputs = model(images)
                     _, preds = torch.max(outputs, 1)
 
-                    if hierarchical_loss:
-                        loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(num_class/num_superclass), num_superclass,
-                                               model, device, weight_decay1=weight_decay1, weight_decay2=weight_decay2)
-                    else:
-                        loss = F.cross_entropy(outputs, labels, reduction="mean")
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(num_class/num_superclass), num_superclass,
+                                               model, device, hierarchical_loss, regularization, weight_decay=weight_decay)
 
                     # backward + optimize if training
                     if phase == "train":
@@ -168,6 +189,16 @@ if __name__ == "__main__":
 
                     running_loss += loss.item() * images.size(0)
                     running_corrects += torch.sum(preds == labels.data)
+
+                    # tensorboard
+                    if phase == "train":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    elif phase == "val":
+                        if (i+1) % n_total_steps == 0:
+                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
+                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
