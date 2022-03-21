@@ -66,24 +66,24 @@ if __name__ == "__main__":
     learning_rate = 0.001
     early_stopping = 400
 
-    hierarchical_loss = True
-    regularization = True
-    weight_decay = 0.05
+    hierarchical_loss = False
+    regularization = False
+    weight_decay = 0.1
     all_superclasses = True
     less_samples = True
-    reduction_factor = 16
+    reduction_factor = 2
 
     if hierarchical_loss and not regularization:
-        model_name = "..//..//resnet_hloss_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//New_210322//resnet_hloss_1on{}.pth".format(reduction_factor)
     elif regularization and not hierarchical_loss:
-        model_name = "..//..//resnet_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//New_210322//resnet_reg_1on{}.pth".format(reduction_factor)
     elif regularization and hierarchical_loss:
-        model_name = "..//..//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//New_210322//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
     else:
-        model_name = "..//..//resnet_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//New_210322//resnet_1on{}.pth".format(reduction_factor)
 
-
-    writer = SummaryWriter(os.path.join("..//Logs//", model_name.split("//")[-1].split(".")[0]))
+    model_name = "..//..//New_210322//resnet_1on{}_wd01.pth".format(reduction_factor)
+    writer = SummaryWriter(os.path.join("..//Logs//New_210322//", model_name.split("//")[-1].split(".")[0]))
 
     classes_name = get_classes()
 
@@ -187,21 +187,11 @@ if __name__ == "__main__":
                         loss.backward()
                         optimizer.step()
 
-                    running_loss += loss.item() * images.size(0)
-                    running_corrects += torch.sum(preds == labels.data)
-
-                    # tensorboard
-                    if phase == "train":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("training loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("training accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
-                    elif phase == "val":
-                        if (i+1) % n_total_steps == 0:
-                            writer.add_scalar("validation loss", running_loss / n_total_steps, epoch * n_total_steps + 1)
-                            writer.add_scalar("validation accuracy", running_corrects / n_total_steps, epoch * n_total_steps + 1)
+                    running_loss += loss.item()  # * images.size(0)
+                    running_corrects += torch.sum(preds == labels.data).item()
 
                 epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / dataset_sizes[phase]
+                epoch_acc = running_corrects / dataset_sizes[phase]
 
                 acc_super = accuracy_superclasses(outputs, labels, np.asarray(coarse_labels), len(superclasses))
 
@@ -220,6 +210,16 @@ if __name__ == "__main__":
                     if platoon == early_stopping:
                         print("Network didn't improve after {} epochs, early stopping".format(early_stopping))
                         stop = True
+
+            if phase == "train":
+                writer.add_scalar("training loss", epoch_loss, epoch)
+                writer.add_scalar("training accuracy", epoch_acc, epoch)
+                writer.add_scalar("training super accuracy", acc_super, epoch)
+
+            elif phase == "val":
+                writer.add_scalar("validation loss", epoch_loss, epoch)
+                writer.add_scalar("validation accuracy", epoch_acc, epoch)
+                writer.add_scalar("validation super accuracy", acc_super, epoch)
 
     print("Finished Training")
 
