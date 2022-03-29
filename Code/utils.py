@@ -6,15 +6,34 @@ from torch.utils.data import Subset
 import os
 import torch
 import torch.nn.functional as F
-
+import copy
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, device, hierarchical_loss, regularization, weight_decay=None):
+class Identity(torch.nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+#
+# def sp_reg(model1, model2):
+#     model1.fc = Identity()
+#     model2.fc = Identity()
+#     w = 0
+#
+#     l1_reg = 0
+#     for (name1, W1), (name2, W2) in zip(model1.named_parameters(), model1.named_parameters()):
+#         if 'weight' in name1:
+#             l1_reg = l1_reg + torch.linalg.norm(W1 - W2)
+#     pass
+
+
+def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, model_0, device, hierarchical_loss,
+                    regularization, sp_regularization, weight_decay1, weight_decay2):
 
     batch = predicted.size(0)
-
     # compute the loss for fine classes
     loss = F.cross_entropy(predicted, actual, reduction="mean")
 
@@ -54,7 +73,17 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
             else:
                 coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
 
-        loss += weight_decay * (fine_penalty + coarse_penalty)
+        loss += weight_decay1 * (fine_penalty + coarse_penalty)
+
+    if sp_regularization:
+        model_1 = copy.deepcopy(model).to(device)
+        model_1.fc = Identity()
+
+        l2_reg = 0
+        for (name1, W1), (name2, W2) in zip(model_1.named_parameters(), model_0.named_parameters()):
+            if 'weight' in name1:
+                l2_reg = l2_reg + torch.linalg.norm(W1 - W2)
+        loss += weight_decay2 * l2_reg
 
     return loss
 
@@ -86,7 +115,7 @@ class ClassSpecificImageFolder(datasets.DatasetFolder):
         return classes, class_to_idx
 
 
-class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
+class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
     def __init__(
             self,
             root,
@@ -96,7 +125,7 @@ class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
             loader=datasets.folder.default_loader,
             is_valid_file=None):
         self.all_dropped_classes = all_dropped_classes
-        super(ClassSpecificImageFolderNotAlphabetic, self).__init__(root, loader,
+        super(class_specific_image_folder_not_alphabetic, self).__init__(root, loader,
                                                                     IMG_EXTENSIONS if is_valid_file is None else None,
                                                                     transform=transform,
                                                                     target_transform=target_transform,

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize, Compose, ToTensor, Resize
 import torch.nn.functional as F
 import os
-from utils import ClassSpecificImageFolderNotAlphabetic, imshow, train_val_dataset, sparse2coarse, exclude_classes, \
+from utils import class_specific_image_folder_not_alphabetic, train_val_dataset, sparse2coarse, exclude_classes, \
     get_classes, get_superclasses, accuracy_superclasses, hierarchical_cc
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
@@ -56,14 +56,14 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
 
     num_epochs = 200
     batch_size = 128
-    learning_rate = 0.001
+    learning_rate = 0.01
     early_stopping = 400
 
     hierarchical_loss = False
@@ -72,6 +72,7 @@ if __name__ == "__main__":
     all_superclasses = True
     less_samples = True
     reduction_factor = 2
+    freeze = True
 
     if hierarchical_loss and not regularization:
         model_name = "..//..//New_210322//resnet_hloss_1on{}.pth".format(reduction_factor)
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     else:
         model_name = "..//..//New_210322//resnet_1on{}.pth".format(reduction_factor)
 
-    model_name = "..//..//New_210322//resnet_1on{}_wd01.pth".format(reduction_factor)
+    model_name = "..//..//Models//New_210322//adam_lr001.pth" #resnet_1on{}_wd01.pth".format(reduction_factor)
     writer = SummaryWriter(os.path.join("..//Logs//New_210322//", model_name.split("//")[-1].split(".")[0]))
 
     classes_name = get_classes()
@@ -112,6 +113,9 @@ if __name__ == "__main__":
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
 
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
+
+    lr_ratio = 1 / len(train_loader)
+
     if less_samples:
         class_names = dataset['train'].dataset.dataset.classes
     else:
@@ -127,12 +131,19 @@ if __name__ == "__main__":
     model.fc = nn.Linear(num_ftrs, out_features=num_class)
     model.to(device)
 
+    if freeze:
+        for name, param in model.named_parameters():
+            if param.requires_grad and 'fc' not in name:
+                param.requires_grad = False
+        # for name, param in model.named_parameters():
+        #     print(name, param)
+
     print(summary(model, (3, 32, 32)))
 
     if not regularization:
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.1)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.1)
     else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -212,11 +223,13 @@ if __name__ == "__main__":
                         stop = True
 
             if phase == "train":
+                print("End of training epoch: loss {:.4f}, accuracy {:.4f}".format(epoch_loss, epoch_acc))
                 writer.add_scalar("training loss", epoch_loss, epoch)
                 writer.add_scalar("training accuracy", epoch_acc, epoch)
                 writer.add_scalar("training super accuracy", acc_super, epoch)
 
             elif phase == "val":
+                print("End of validation epoch: loss {:.4f}, accuracy {:.4f}".format(epoch_loss, epoch_acc))
                 writer.add_scalar("validation loss", epoch_loss, epoch)
                 writer.add_scalar("validation accuracy", epoch_acc, epoch)
                 writer.add_scalar("validation super accuracy", acc_super, epoch)
