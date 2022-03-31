@@ -30,8 +30,8 @@ class Identity(torch.nn.Module):
 #     pass
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, model_0, device, hierarchical_loss,
-                    regularization, sp_regularization, weight_decay1, weight_decay2):
+def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, w0, device, hierarchical_loss,
+                    regularization, sp_regularization, weight_decay):
 
     batch = predicted.size(0)
     # compute the loss for fine classes
@@ -73,17 +73,16 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
             else:
                 coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
 
-        loss += weight_decay1 * (fine_penalty + coarse_penalty)
+        loss += weight_decay * (fine_penalty + coarse_penalty)
 
     if sp_regularization:
-        model_1 = copy.deepcopy(model).to(device)
-        model_1.fc = Identity()
+        # param_vec = torch.nn.utils.parameters_to_vector(model.parameters())
+        for i, (name, W) in enumerate(model.named_parameters()):
+            if 'weight' in name and 'fc' not in name:
+                w = W.view(-1) if i == 0 else torch.cat((w, W.view(-1)))
 
-        l2_reg = 0
-        for (name1, W1), (name2, W2) in zip(model_1.named_parameters(), model_0.named_parameters()):
-            if 'weight' in name1:
-                l2_reg = l2_reg + torch.linalg.norm(W1 - W2)
-        loss += weight_decay2 * l2_reg
+        l2_reg = torch.linalg.norm(w - w0)
+        loss += weight_decay * l2_reg
 
     return loss
 

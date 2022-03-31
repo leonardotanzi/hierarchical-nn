@@ -9,6 +9,7 @@ import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
 import copy
+from torch.optim import lr_scheduler
 
 
 if __name__ == "__main__":
@@ -36,16 +37,18 @@ if __name__ == "__main__":
                                                          transform=transform)
 
     batch_size = 128
-    n_epochs = 50
+    n_epochs = 100
     learning_rate = 0.001
+    step_size = 40
 
     hierarchical_loss = False
     regularization = False
-    sp_regularization = False
-    weight_decay_hreg = 0.01
-    weight_decay_sp = 0.01
+
+    run_scheduler = False
+    sp_regularization = True
+    weight_decay = 0.01
     less_samples = False
-    reduction_factor = 2
+    reduction_factor = 1
 
     if hierarchical_loss and not regularization:
         model_name = "..//..//Models//New_290322//resnet_hloss_1on{}.pth".format(reduction_factor)
@@ -56,8 +59,11 @@ if __name__ == "__main__":
     else:
         model_name = "..//..//Models//New_290322//resnet_1on{}.pth".format(reduction_factor)
 
+    model_name = "..//..//Models//New_290322//resnet1on1spfaster.pth".format(reduction_factor)
+
     writer = SummaryWriter(os.path.join("..//Logs//New_290322//", model_name.split("//")[-1].split(".")[0]))
 
+    # I should apply this just to train not to validation!
     if less_samples:
         evens = list(range(0, len(train_dataset), reduction_factor))
         train_dataset = torch.utils.data.Subset(train_dataset, evens)
@@ -74,11 +80,19 @@ if __name__ == "__main__":
     model_0 = copy.deepcopy(model).to(device)
     model_0.fc = Identity()
 
+    w0 = 0
+    if sp_regularization:
+        for i, (name, W0) in enumerate(model_0.named_parameters()):
+            if 'weight' in name:
+                w0 = W0.view(-1) if i == 0 else torch.cat((w0, W0.view(-1)))
+        w0 = w0.detach()
+
     num_ftrs = model.fc.in_features  # input features for the last layers
     model.fc = nn.Linear(num_ftrs, out_features=n_classes)  # we have 2 classes now
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.1) if not regularization else torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.3)  # every 25 epoch the lr is multiplied by gamma
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -116,8 +130,8 @@ if __name__ == "__main__":
                     _, preds = torch.max(outputs, 1)
                     #loss = F.cross_entropy(outputs, labels)
                     loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(n_classes / n_superclasses),
-                                           n_superclasses, model, model_0, device, hierarchical_loss, regularization, sp_regularization,
-                                           weight_decay_hreg, weight_decay_sp)
+                                           n_superclasses, model, w0, device, hierarchical_loss, regularization,
+                                           sp_regularization, weight_decay)
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -154,6 +168,8 @@ if __name__ == "__main__":
                     writer.add_scalar("validation super accuracy", acc_super, epoch)
 
                 elif phase == "train":
+                    if run_scheduler:
+                        scheduler.step()
                     print("End of training epoch: loss {:.4f}, accuracy {:.4f}".format(epoch_loss, epoch_acc))
                     writer.add_scalar("training loss", epoch_loss, epoch)
                     writer.add_scalar("training accuracy", epoch_acc, epoch)
