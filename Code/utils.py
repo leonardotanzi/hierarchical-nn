@@ -7,30 +7,13 @@ import os
 import torch
 import torch.nn.functional as F
 import copy
+from anytree import Node, RenderTree, LevelOrderGroupIter
+
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-class Identity(torch.nn.Module):
-    def __init__(self):
-        super(Identity, self).__init__()
-
-    def forward(self, x):
-        return x
-#
-# def sp_reg(model1, model2):
-#     model1.fc = Identity()
-#     model2.fc = Identity()
-#     w = 0
-#
-#     l1_reg = 0
-#     for (name1, W1), (name2, W2) in zip(model1.named_parameters(), model1.named_parameters()):
-#         if 'weight' in name1:
-#             l1_reg = l1_reg + torch.linalg.norm(W1 - W2)
-#     pass
-
-
-def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, model, w0, device, hierarchical_loss,
+def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device, hierarchical_loss,
                     regularization, sp_regularization, weight_decay):
 
     batch = predicted.size(0)
@@ -45,8 +28,11 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
             # obtain the indexes of the superclass number k
             indexes = list(np.where(coarse_labels == k))[0]
             # for each index, sum all the probability related to that superclass
-            for j in indexes:
-                predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0 the classes are 0 to 4
+            predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+            # this line is like the cycle below but more fast
+            # for j in indexes:
+            #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
         actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
 
@@ -54,34 +40,71 @@ def hierarchical_cc(predicted, actual, coarse_labels, n_class, n_superclass, mod
         loss += loss_coarse
 
     if regularization:
-        beta = model.fc.weight.data
+        # beta = model.fc.weight.data
+        #
+        # penalty = 0
+        # for i, node in enumerate(LevelOrderGroupIter(tree)):
+        #     # start computing not for root but for first layer
+        #     if i > 0:
+        #         # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
+        #         for level_class in node:
+        #             # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
+        #             n_ancestors = 0 if i == 1 else 1
+        #             # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
+        #             descendants = level_class.leaves
+        #             # PRIMO TERMINE
+        #             # se sono allultimo livello (quello delle classi, dove la heigth è zero,
+        #             # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
+        #             # come primo termine
+        #             if level_class.height == 0:
+        #                 position = class_to_index(level_class.name)
+        #                 beta_vec_node = model.fc.weight.data[position]
+        #             # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
+        #             else:
+        #                 for j, classes_name in enumerate(descendants):
+        #                     # recupero l'indice associato al nome della classe
+        #                     position = class_to_index(classes_name.name)
+        #                     # prendo il vettore tra i pesi relativo a quell'indice
+        #                     beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
+        #             # SECONDO TERMINE
+        #             # I have to do the same thing but this time with the leaves of the parent
+        #             for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
+        #                 position = class_to_index(superclasses_name.name)
+        #                 beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
+        #
+        #             # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
+        #             penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - n_ancestors*(torch.mean(beta_vec_parent, dim=0))))
+        #
+        # print(penalty)
+        #
+        # loss += weight_decay * penalty
 
         # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque clasi,
         # secondi cinque delle seconde cinque classi e cosi via
 
         for i in range(n_superclass):
             if i == 0:
-                mean_betas = torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
+                mean_betas = torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
             else:
-                mean_betas = torch.cat((mean_betas, torch.mean(beta[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
+                mean_betas = torch.cat((mean_betas, torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
 
-        fine_penalty = torch.sum(torch.linalg.norm(beta - mean_betas, dim=1))
+        fine_penalty = torch.sum(torch.linalg.norm(model.fc.weight.data - mean_betas, dim=1))
 
         for i in range(n_superclass):
             if i == 0:
-                coarse_penalty = torch.linalg.norm(torch.sum(beta[i:i+n_class], dim=0))
+                coarse_penalty = torch.linalg.norm(torch.sum(model.fc.weight.data[i:i+n_class], dim=0))
             else:
-                coarse_penalty += torch.linalg.norm(beta[i:i + n_class])
+                coarse_penalty += torch.linalg.norm(5*model.fc.weight.data[i:i + n_class])
 
+        print(fine_penalty + coarse_penalty)
         loss += weight_decay * (fine_penalty + coarse_penalty)
 
     if sp_regularization:
-        # param_vec = torch.nn.utils.parameters_to_vector(model.parameters())
+        w = []
         for i, (name, W) in enumerate(model.named_parameters()):
             if 'weight' in name and 'fc' not in name:
-                w = W.view(-1) if i == 0 else torch.cat((w, W.view(-1)))
-
-        l2_reg = torch.linalg.norm(w - w0)
+                w.append(W.view(-1))
+        l2_reg = torch.linalg.norm(torch.cat(w) - w0)
         loss += weight_decay * l2_reg
 
     return loss
@@ -140,6 +163,29 @@ class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
+def class_to_index(token):
+    classes = ['beaver', 'dolphin', 'otter', 'seal', 'whale',
+             'aquarium_fish', 'flatfish', 'ray', 'shark', 'trout',
+             'orchid', 'poppy', 'rose', 'sunflower', 'tulip',
+             'bottle', 'bowl', 'can', 'cup', 'plate',
+             'apple', 'mushroom', 'orange', 'pear', 'sweet_pepper',
+             'clock', 'keyboard', 'lamp', 'telephone', 'television',
+             'bed', 'chair', 'couch', 'table', 'wardrobe',
+             'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
+             'bear', 'leopard', 'lion', 'tiger', 'wolf',
+             'bridge', 'castle', 'house', 'road', 'skyscraper',
+             'cloud', 'forest', 'mountain', 'plain', 'sea',
+             'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
+             'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
+             'crab', 'lobster', 'snail', 'spider', 'worm',
+             'baby', 'boy', 'girl', 'man', 'woman',
+             'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
+             'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
+             'maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree',
+             'bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train',
+             'lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']
+    return classes.index(token)
+
 
 def get_classes():
     return [['beaver', 'dolphin', 'otter', 'seal', 'whale',
@@ -162,6 +208,7 @@ def get_classes():
              'maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree',
              'bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train',
              'lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
+
 
 def get_superclasses():
     return ['aquatic mammals', 'fish', 'flowers', 'food containers', 'fruit and vegetables',
@@ -270,15 +317,13 @@ def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass):
     for k in range(n_superclass):
         # obtain the indexes of the superclass number k
         indexes = list(np.where(coarse_labels == k))[0]
-        # for each index, sum all the probability related to that superclass
-        for j in indexes:
-            predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+        predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
 
     actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
     predicted_coarse = np.argmax(predicted_coarse.cpu().detach().numpy(), axis=1)
+    running_corrects = np.sum(predicted_coarse == actual_coarse)
 
-    acc = np.sum(np.equal(actual_coarse, predicted_coarse)) / len(actual_coarse)
-    return acc
+    return running_corrects
 
 
 def to_latex_heatmap(n_classes, classes_name, matrix):
@@ -334,6 +379,37 @@ def readpgm(name):
     return (np.array(data[3:]),(data[1],data[0]),data[2])
 
 
+def return_tree_CIFAR():
+    superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+                       'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
+                       'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+                       'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
+                       'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+                       'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+                       'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe'],
+                       'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+                       'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+                       'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+                       'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea'],
+                       'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+                       'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+                       'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm'],
+                       'people': ['baby', 'boy', 'girl', 'man', 'woman'],
+                       'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+                       'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
+                       'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
+                       'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+                       'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}
+
+    root = Node("root")
+    for i, (k, v) in enumerate(superclass_dict.items()):
+        p = Node(f"{k}", parent=root)
+        for c in v:
+            n = Node(f"{c}", parent=p)
+    return root
+
+
 if __name__ == "__main__":
 
-    to_latex_heatmap(3, ["a", "b", "c"], [[411, 75, 14], [53, 436, 11], [3,  28, 469]])
+    # to_latex_heatmap(3, ["a", "b", "c"], [[411, 75, 14], [53, 436, 11], [3,  28, 469]])
+    return_tree_CIFAR()

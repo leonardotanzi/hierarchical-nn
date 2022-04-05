@@ -4,11 +4,10 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 from utils import train_val_dataset, hierarchical_cc, get_superclasses, exclude_classes, \
-    class_specific_image_folder_not_alphabetic, get_classes, accuracy_superclasses, Identity
+    class_specific_image_folder_not_alphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
-import copy
 from torch.optim import lr_scheduler
 
 
@@ -25,15 +24,15 @@ if __name__ == "__main__":
     test_dir = "..//..//cifar//test//"
     # prepare superclasses
     superclasses = get_superclasses()
-    classes_name = get_classes()
+    classes = get_classes()
     # given the list of superclasses, returns the class to exclude and the coarse label
-    n_classes = len(classes_name[0])
+    n_classes = len(classes[0])
     n_superclasses = len(superclasses)
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    classes_name.append(excluded)
-    train_dataset = class_specific_image_folder_not_alphabetic(train_dir, all_dropped_classes=classes_name,
+    classes.append(excluded)
+    train_dataset = class_specific_image_folder_not_alphabetic(train_dir, all_dropped_classes=classes,
                                                           transform=transform)
-    test_dataset = class_specific_image_folder_not_alphabetic(test_dir, all_dropped_classes=classes_name,
+    test_dataset = class_specific_image_folder_not_alphabetic(test_dir, all_dropped_classes=classes,
                                                          transform=transform)
 
     batch_size = 128
@@ -42,13 +41,13 @@ if __name__ == "__main__":
     step_size = 40
 
     hierarchical_loss = False
-    regularization = False
+    regularization = True
 
     run_scheduler = False
     sp_regularization = True
     weight_decay = 0.01
     less_samples = False
-    reduction_factor = 1
+    reduction_factor = 1 if less_samples is False else 2
 
     if hierarchical_loss and not regularization:
         model_name = "..//..//Models//New_290322//resnet_hloss_1on{}.pth".format(reduction_factor)
@@ -59,16 +58,13 @@ if __name__ == "__main__":
     else:
         model_name = "..//..//Models//New_290322//resnet_1on{}.pth".format(reduction_factor)
 
-    model_name = "..//..//Models//New_290322//resnet1on1spfaster.pth".format(reduction_factor)
-
     writer = SummaryWriter(os.path.join("..//Logs//New_290322//", model_name.split("//")[-1].split(".")[0]))
 
-    # I should apply this just to train not to validation!
-    if less_samples:
-        evens = list(range(0, len(train_dataset), reduction_factor))
-        train_dataset = torch.utils.data.Subset(train_dataset, evens)
-
     dataset = train_val_dataset(train_dataset, val_split=0.15)
+
+    if less_samples:
+        evens = list(range(0, len(dataset["train"]), reduction_factor))
+        dataset["train"] = torch.utils.data.Subset(dataset["train"], evens)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
@@ -77,22 +73,20 @@ if __name__ == "__main__":
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     model = models.resnet18(pretrained=True)
-    model_0 = copy.deepcopy(model).to(device)
-    model_0.fc = Identity()
 
-    w0 = 0
-    if sp_regularization:
-        for i, (name, W0) in enumerate(model_0.named_parameters()):
-            if 'weight' in name:
-                w0 = W0.view(-1) if i == 0 else torch.cat((w0, W0.view(-1)))
-        w0 = w0.detach()
+    #for sp regularization
+    vec = []
+    for i, (name, W) in enumerate(model.named_parameters()):
+        if 'weight' in name and 'fc' not in name:
+            vec.append(W.view(-1))
+    w0 = torch.cat(vec).detach().to(device)
 
     num_ftrs = model.fc.in_features  # input features for the last layers
     model.fc = nn.Linear(num_ftrs, out_features=n_classes)  # we have 2 classes now
     model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.3)  # every 25 epoch the lr is multiplied by gamma
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.3)  # every n=step_size epoch the lr is multiplied by gamma
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
@@ -102,7 +96,7 @@ if __name__ == "__main__":
 
     for epoch in range(n_epochs):
         print('-' * 200)
-        print('Epoch {}/{}'.format(epoch, n_epochs - 1))
+        print('Epoch {}/{}'.format(epoch + 1, n_epochs))
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -117,6 +111,7 @@ if __name__ == "__main__":
 
             running_loss = 0.0
             running_corrects = 0
+            running_corrects_super = 0
 
             # Iterate over data.
             for i, (inputs, labels) in enumerate(loader):
@@ -128,8 +123,7 @@ if __name__ == "__main__":
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    #loss = F.cross_entropy(outputs, labels)
-                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), int(n_classes / n_superclasses),
+                    loss = hierarchical_cc(outputs, labels, np.asarray(coarse_labels), return_tree_CIFAR(), int(n_classes / n_superclasses),
                                            n_superclasses, model, w0, device, hierarchical_loss, regularization,
                                            sp_regularization, weight_decay)
 
@@ -142,10 +136,11 @@ if __name__ == "__main__":
                 # statistics
                 running_loss += loss.item() * inputs.size(0) #multiple the loss for the number of the sample in the batch in order to average it
                 running_corrects += torch.sum(preds == labels.data)
+                running_corrects_super += accuracy_superclasses(outputs, labels, np.asarray(coarse_labels), len(superclasses))
 
             epoch_loss = running_loss / dataset_sizes[phase] #average the loss
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
-            acc_super = accuracy_superclasses(outputs, labels, np.asarray(coarse_labels), len(superclasses))
+            acc_super = running_corrects_super / dataset_sizes[phase]
 
             print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f} Acc Super: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc, acc_super))
 
@@ -162,7 +157,7 @@ if __name__ == "__main__":
                         platoon += 1
                         print("{} epochs without improvement, best accuracy: {:.4f}".format(platoon, best_acc))
 
-                    print("End of validation epoch: loss {:.4f}, accuracy {:.4f}".format(epoch_loss, epoch_acc))
+                    print("End of validation epoch.")
                     writer.add_scalar("validation loss", epoch_loss, epoch)
                     writer.add_scalar("validation accuracy", epoch_acc, epoch)
                     writer.add_scalar("validation super accuracy", acc_super, epoch)
@@ -170,7 +165,7 @@ if __name__ == "__main__":
                 elif phase == "train":
                     if run_scheduler:
                         scheduler.step()
-                    print("End of training epoch: loss {:.4f}, accuracy {:.4f}".format(epoch_loss, epoch_acc))
+                    print("End of training epoch.")
                     writer.add_scalar("training loss", epoch_loss, epoch)
                     writer.add_scalar("training accuracy", epoch_acc, epoch)
                     writer.add_scalar("training super accuracy", acc_super, epoch)
