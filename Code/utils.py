@@ -40,64 +40,63 @@ def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclas
         loss += loss_coarse
 
     if regularization:
-        # beta = model.fc.weight.data
+        beta = model.fc.weight.data
+        mean_betas = torch.mean(model.fc.weight.data[0 * n_class:0 * n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
+        # #
+        penalty = 0
+        for i, node in enumerate(LevelOrderGroupIter(tree)):
+            # start computing not for root but for first layer
+            if i > 0:
+                # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
+                for level_class in node:
+                    # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
+                    n_ancestors = 0 if i == 1 else 1
+                    # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
+                    descendants = level_class.leaves
+                    # PRIMO TERMINE
+                    # se sono allultimo livello (quello delle classi, dove la heigth è zero,
+                    # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
+                    # come primo termine
+                    if level_class.height == 0:
+                        position = class_to_index(level_class.name)
+                        beta_vec_node = model.fc.weight.data[position][None, :]
+                    # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
+                    else:
+                        for j, classes_name in enumerate(descendants):
+                            # recupero l'indice associato al nome della classe
+                            position = class_to_index(classes_name.name)
+                            # prendo il vettore tra i pesi relativo a quell'indice
+                            beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
+                    # SECONDO TERMINE
+                    # I have to do the same thing but this time with the leaves of the parent
+                    if n_ancestors is not 0:
+                        for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
+                            position = class_to_index(superclasses_name.name)
+                            beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
+
+                        # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
+                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - torch.mean(beta_vec_parent, dim=0)))
+                    else:
+                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0)))
+
+        print(f"Penalty:{penalty}")
+
+        loss += weight_decay * penalty
+
+        # # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque classi,
+        # # secondi cinque delle seconde cinque classi e cosi via
+        # mean_betas = torch.mean(model.fc.weight.data[0 * n_class:0 * n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
+        # coarse_penalty = torch.linalg.norm(n_class * torch.mean(model.fc.weight.data[0:0 + n_class], dim=0))
         #
-        # penalty = 0
-        # for i, node in enumerate(LevelOrderGroupIter(tree)):
-        #     # start computing not for root but for first layer
-        #     if i > 0:
-        #         # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
-        #         for level_class in node:
-        #             # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
-        #             n_ancestors = 0 if i == 1 else 1
-        #             # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
-        #             descendants = level_class.leaves
-        #             # PRIMO TERMINE
-        #             # se sono allultimo livello (quello delle classi, dove la heigth è zero,
-        #             # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
-        #             # come primo termine
-        #             if level_class.height == 0:
-        #                 position = class_to_index(level_class.name)
-        #                 beta_vec_node = model.fc.weight.data[position]
-        #             # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
-        #             else:
-        #                 for j, classes_name in enumerate(descendants):
-        #                     # recupero l'indice associato al nome della classe
-        #                     position = class_to_index(classes_name.name)
-        #                     # prendo il vettore tra i pesi relativo a quell'indice
-        #                     beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
-        #             # SECONDO TERMINE
-        #             # I have to do the same thing but this time with the leaves of the parent
-        #             for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
-        #                 position = class_to_index(superclasses_name.name)
-        #                 beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
+        # for i in range(1, n_superclass):
+        #     mean_betas = torch.cat((mean_betas, torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
+        #     coarse_penalty += torch.linalg.norm(n_class * torch.mean(model.fc.weight.data[i:i + n_class], dim=0))
         #
-        #             # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
-        #             penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - n_ancestors*(torch.mean(beta_vec_parent, dim=0))))
+        # fine_penalty = torch.sum(torch.linalg.norm(model.fc.weight.data - mean_betas, dim=1)) #dim è 1 perchè devo fare in orizzontale la norm e poi sommare ogni elemento
         #
-        # print(penalty)
-        #
-        # loss += weight_decay * penalty
-
-        # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque clasi,
-        # secondi cinque delle seconde cinque classi e cosi via
-
-        for i in range(n_superclass):
-            if i == 0:
-                mean_betas = torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
-            else:
-                mean_betas = torch.cat((mean_betas, torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
-
-        fine_penalty = torch.sum(torch.linalg.norm(model.fc.weight.data - mean_betas, dim=1))
-
-        for i in range(n_superclass):
-            if i == 0:
-                coarse_penalty = torch.linalg.norm(torch.sum(model.fc.weight.data[i:i+n_class], dim=0))
-            else:
-                coarse_penalty += torch.linalg.norm(5*model.fc.weight.data[i:i + n_class])
-
-        print(fine_penalty + coarse_penalty)
-        loss += weight_decay * (fine_penalty + coarse_penalty)
+        # print(fine_penalty + coarse_penalty)
+        # print(f"Penalty:{fine_penalty + coarse_penalty}")
+        # loss += weight_decay * (fine_penalty + coarse_penalty)
 
     if sp_regularization:
         w = []
@@ -379,7 +378,7 @@ def readpgm(name):
     return (np.array(data[3:]),(data[1],data[0]),data[2])
 
 
-def return_tree_CIFAR():
+def return_tree_CIFAR(reduced=False):
     superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
                        'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
                        'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
@@ -400,6 +399,10 @@ def return_tree_CIFAR():
                        'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
                        'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
                        'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}
+
+    if reduced:
+        superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+                           'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']}
 
     root = Node("root")
     for i, (k, v) in enumerate(superclass_dict.items()):

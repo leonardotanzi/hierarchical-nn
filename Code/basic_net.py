@@ -24,6 +24,7 @@ if __name__ == "__main__":
     test_dir = "..//..//cifar//test//"
     # prepare superclasses
     superclasses = get_superclasses()
+    # superclasses = ["aquatic mammals", "fish"]
     classes = get_classes()
     # given the list of superclasses, returns the class to exclude and the coarse label
     n_classes = len(classes[0])
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     else:
         model_name = "..//..//Models//New_290322//resnet_1on{}.pth".format(reduction_factor)
 
+    model_name = "..//..//Models//New_290322//canc.pth"
     writer = SummaryWriter(os.path.join("..//Logs//New_290322//", model_name.split("//")[-1].split(".")[0]))
 
     dataset = train_val_dataset(train_dataset, val_split=0.15)
