@@ -12,6 +12,21 @@ import seaborn as sn
 import pandas as pd
 
 
+def evaluate_regularization(model, n_class=5, n_superclass=20):
+    coarse_penalty = 0.0
+    fine_penalty = 0.0
+    for i in range(n_superclass):
+        coarse_penalty += (torch.linalg.norm(
+            torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
+    for i in range(n_class * n_superclass):
+        sc_index = 1 // 5
+        fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(
+            model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class]))) ** 2
+
+    print(coarse_penalty)
+    print(fine_penalty)
+
+
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -36,7 +51,7 @@ if __name__ == "__main__":
                                                               transform=transform)
 
     classes = classes[0]
-    model_name = "..//..//Models//New_290322//resnet_hloss_reg_1on1.pth"
+    model_name = "..//..//Models//New_190422//resnet_reg_1on1.pth"
 
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -44,10 +59,12 @@ if __name__ == "__main__":
 
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features  # input features for the last layers
-    model.fc = nn.Linear(num_ftrs, out_features=n_classes)  # we have 2 classes now
+    model.fc = nn.Linear(num_ftrs, out_features=n_classes)
     model.load_state_dict(torch.load(model_name))  # it takes the loaded dictionary, not the path file itself
     model.to(device)
     model.eval()
+
+    evaluate_regularization(model)
 
     y_pred = []
     y_true = []

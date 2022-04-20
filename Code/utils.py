@@ -8,17 +8,16 @@ import torch
 import torch.nn.functional as F
 import copy
 from anytree import Node, RenderTree, LevelOrderGroupIter
-
+import torch.nn as nn
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
 def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device, hierarchical_loss,
                     regularization, sp_regularization, weight_decay):
-
     batch = predicted.size(0)
     # compute the loss for fine classes
-    loss = F.cross_entropy(predicted, actual, reduction="mean")
+    loss = F.cross_entropy(predicted, actual, reduction="sum")
 
     if hierarchical_loss:
         # define an empty vector which contains 20 superclasses prediction for each samples
@@ -36,77 +35,207 @@ def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclas
 
         actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
 
-        loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="mean")
+        loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
+                                      reduction="sum")
         loss += loss_coarse
 
     if regularization:
-        beta = model.fc.weight.data
-        mean_betas = torch.mean(model.fc.weight.data[0 * n_class:0 * n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
-        # #
-        penalty = 0
-        for i, node in enumerate(LevelOrderGroupIter(tree)):
-            # start computing not for root but for first layer
-            if i > 0:
-                # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
-                for level_class in node:
-                    # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
-                    n_ancestors = 0 if i == 1 else 1
-                    # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
-                    descendants = level_class.leaves
-                    # PRIMO TERMINE
-                    # se sono allultimo livello (quello delle classi, dove la heigth è zero,
-                    # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
-                    # come primo termine
-                    if level_class.height == 0:
-                        position = class_to_index(level_class.name)
-                        beta_vec_node = model.fc.weight.data[position][None, :]
-                    # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
-                    else:
-                        for j, classes_name in enumerate(descendants):
-                            # recupero l'indice associato al nome della classe
-                            position = class_to_index(classes_name.name)
-                            # prendo il vettore tra i pesi relativo a quell'indice
-                            beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
-                    # SECONDO TERMINE
-                    # I have to do the same thing but this time with the leaves of the parent
-                    if n_ancestors is not 0:
-                        for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
-                            position = class_to_index(superclasses_name.name)
-                            beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
 
-                        # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
-                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - torch.mean(beta_vec_parent, dim=0)))
-                    else:
-                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0)))
-
-        print(f"Penalty:{penalty}")
-
-        loss += weight_decay * penalty
+        # penalty = 0
+        # for i, node in enumerate(LevelOrderGroupIter(tree)):
+        #     # start computing not for root but for first layer
+        #     if i > 0:
+        #         # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
+        #         for level_class in node:
+        #             # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
+        #             n_ancestors = 0 if i == 1 else 1
+        #             # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
+        #             descendants = level_class.leaves
+        #             # PRIMO TERMINE
+        #             # se sono allultimo livello (quello delle classi, dove la heigth è zero,
+        #             # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
+        #             # come primo termine
+        #             if level_class.height == 0:
+        #                 position = class_to_index(level_class.name)
+        #                 beta_vec_node = model.fc.weight.data[position][None, :]
+        #             # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
+        #             else:
+        #                 for j, classes_name in enumerate(descendants):
+        #                     # recupero l'indice associato al nome della classe
+        #                     position = class_to_index(classes_name.name)
+        #                     # prendo il vettore tra i pesi relativo a quell'indice
+        #                     beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
+        #             # SECONDO TERMINE
+        #             # I have to do the same thing but this time with the leaves of the parent
+        #             if n_ancestors is not 0:
+        #                 for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
+        #                     position = class_to_index(superclasses_name.name)
+        #                     beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
+        #
+        #                 # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
+        #                 penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - torch.mean(beta_vec_parent, dim=0)))
+        #             else:
+        #                 penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0)))
+        #
+        # print(f"Penalty:{penalty}")
+        #
+        # loss += weight_decay * penalty
 
         # # sommo le mean per le superclassi e le ripeto cosi ho un array delle stesse dim [15, 2048] e i primi cinque sono la mean delle prime cinque classi,
         # # secondi cinque delle seconde cinque classi e cosi via
-        # mean_betas = torch.mean(model.fc.weight.data[0 * n_class:0 * n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
-        # coarse_penalty = torch.linalg.norm(n_class * torch.mean(model.fc.weight.data[0:0 + n_class], dim=0))
-        #
-        # for i in range(1, n_superclass):
-        #     mean_betas = torch.cat((mean_betas, torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
-        #     coarse_penalty += torch.linalg.norm(n_class * torch.mean(model.fc.weight.data[i:i + n_class], dim=0))
-        #
-        # fine_penalty = torch.sum(torch.linalg.norm(model.fc.weight.data - mean_betas, dim=1)) #dim è 1 perchè devo fare in orizzontale la norm e poi sommare ogni elemento
-        #
-        # print(fine_penalty + coarse_penalty)
+
+        '''
+        mean_betas = torch.mean(model.fc.weight.data[0 * n_class:0 * n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)
+        coarse_penalty = n_class**2 * (torch.linalg.norm(torch.mean(model.fc.weight.data[0:0 + n_class], dim=0)))**2
+
+        for i in range(1, n_superclass):
+            mean_betas = torch.cat((mean_betas, torch.mean(model.fc.weight.data[i*n_class:i*n_class + n_class], dim=0, keepdim=True).repeat(n_class, 1)), 0)
+            coarse_penalty += n_class**2 * (torch.linalg.norm(torch.mean(model.fc.weight.data[i:i + n_class], dim=0)))**2
+
+        fine_penalty = torch.sum((torch.linalg.norm(model.fc.weight.data - mean_betas, dim=1))**2) #dim è 1 perchè devo fare in orizzontale la norm e poi sommare ogni elemento
+
         # print(f"Penalty:{fine_penalty + coarse_penalty}")
-        # loss += weight_decay * (fine_penalty + coarse_penalty)
+        loss += weight_decay * (fine_penalty + coarse_penalty)
+        '''
+
+        coarse_penalty = 0.0
+        fine_penalty = 0.0
+        for i in range(n_superclass):
+            coarse_penalty += (torch.linalg.norm(torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
+        for i in range(n_class * n_superclass):
+            sc_index = i//5
+            fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
+
+        loss += weight_decay * (fine_penalty + coarse_penalty)
 
     if sp_regularization:
         w = []
         for i, (name, W) in enumerate(model.named_parameters()):
             if 'weight' in name and 'fc' not in name:
                 w.append(W.view(-1))
-        l2_reg = torch.linalg.norm(torch.cat(w) - w0)
+        l2_reg = (torch.linalg.norm(torch.cat(w) - w0))**2
         loss += weight_decay * l2_reg
 
     return loss
+
+
+def analyze_penalty_behaviour(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device, hierarchical_loss,
+                    regularization, sp_regularization, weight_decay):
+
+    batch = predicted.size(0)
+    # compute the loss for fine classes
+    loss_fine = F.cross_entropy(predicted, actual, reduction="sum")
+
+    if hierarchical_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
+
+        for k in range(n_superclass):
+            # obtain the indexes of the superclass number k
+            indexes = list(np.where(coarse_labels == k))[0]
+            # for each index, sum all the probability related to that superclass
+            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0 the classes are 0 to 4
+            predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+            # this line is like the cycle below but more fast
+            # for j in indexes:
+            #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+        actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+
+        loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
+                                      reduction="sum")
+        loss += loss_coarse
+
+    if regularization:
+
+        coarse_penalty = 0.0
+        fine_penalty = 0.0
+        for i in range(n_superclass):
+            coarse_penalty += (torch.linalg.norm(torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
+        for i in range(n_class * n_superclass):
+            sc_index = i//5
+            fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
+
+        loss = loss_fine + weight_decay * (fine_penalty + coarse_penalty)
+
+    if sp_regularization:
+        w = []
+        for i, (name, W) in enumerate(model.named_parameters()):
+            if 'weight' in name and 'fc' not in name:
+                w.append(W.view(-1))
+        l2_reg = (torch.linalg.norm(torch.cat(w) - w0))**2
+        loss += weight_decay * l2_reg
+
+    return loss, loss_fine, coarse_penalty, fine_penalty
+
+
+def hierarchical_cc_singlelosses(predicted, actual, coarse_labels, n_superclass, model, w0, device, weight_decay):
+    batch = predicted.size(0)
+    # compute the loss for fine classes
+    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
+
+    # define an empty vector which contains 20 superclasses prediction for each samples
+    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
+
+    for k in range(n_superclass):
+        # obtain the indexes of the superclass number k
+        indexes = list(np.where(coarse_labels == k))[0]
+        # for each index, sum all the probability related to that superclass
+        # for each line, at the position k, you sum all the classe related to superclass k, so for k=0 the classes are 0 to 4
+        predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+        # this line is like the cycle below but more fast
+        # for j in indexes:
+        #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+
+    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
+                                  reduction="mean")
+
+    w = []
+    for i, (name, W) in enumerate(model.named_parameters()):
+        if 'weight' in name and 'fc' not in name:
+            w.append(W.view(-1))
+    l2_reg = torch.linalg.norm(torch.cat(w) - w0)
+    loss_after_sp = loss_fine + loss_coarse + weight_decay * l2_reg
+    loss_before_sp = loss_fine + loss_coarse
+
+    return loss_after_sp, loss_fine, loss_coarse, loss_before_sp
+
+
+class ConvNet(nn.Module):
+    def __init__(self, num_classes):
+        super(ConvNet, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding="same")
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding="same")
+        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding="same")
+        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(3, 3), padding="same")
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(512 * 2 * 2, 4096)
+        self.fc2 = nn.Linear(4096, 2048)
+        self.fc3 = nn.Linear(2048, num_classes)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv3(x))
+        x = self.pool(x)
+        x = F.relu(self.conv4(x))
+        x = self.pool(x)
+        x = x.view(-1, 512 * 2 * 2)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+def select_n_random(data, labels, n=100):
+    assert len(data) == len(labels)
+
+    perm = torch.randperm(len(data))
+    return data[perm][:n], labels[perm][:n]
 
 
 class ClassSpecificImageFolder(datasets.DatasetFolder):
@@ -147,10 +276,10 @@ class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
             is_valid_file=None):
         self.all_dropped_classes = all_dropped_classes
         super(class_specific_image_folder_not_alphabetic, self).__init__(root, loader,
-                                                                    IMG_EXTENSIONS if is_valid_file is None else None,
-                                                                    transform=transform,
-                                                                    target_transform=target_transform,
-                                                                    is_valid_file=is_valid_file)
+                                                                         IMG_EXTENSIONS if is_valid_file is None else None,
+                                                                         transform=transform,
+                                                                         target_transform=target_transform,
+                                                                         is_valid_file=is_valid_file)
         self.imgs = self.samples
 
     def find_classes(self, directory):
@@ -162,27 +291,28 @@ class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
+
 def class_to_index(token):
     classes = ['beaver', 'dolphin', 'otter', 'seal', 'whale',
-             'aquarium_fish', 'flatfish', 'ray', 'shark', 'trout',
-             'orchid', 'poppy', 'rose', 'sunflower', 'tulip',
-             'bottle', 'bowl', 'can', 'cup', 'plate',
-             'apple', 'mushroom', 'orange', 'pear', 'sweet_pepper',
-             'clock', 'keyboard', 'lamp', 'telephone', 'television',
-             'bed', 'chair', 'couch', 'table', 'wardrobe',
-             'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
-             'bear', 'leopard', 'lion', 'tiger', 'wolf',
-             'bridge', 'castle', 'house', 'road', 'skyscraper',
-             'cloud', 'forest', 'mountain', 'plain', 'sea',
-             'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
-             'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
-             'crab', 'lobster', 'snail', 'spider', 'worm',
-             'baby', 'boy', 'girl', 'man', 'woman',
-             'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
-             'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
-             'maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree',
-             'bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train',
-             'lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']
+               'aquarium_fish', 'flatfish', 'ray', 'shark', 'trout',
+               'orchid', 'poppy', 'rose', 'sunflower', 'tulip',
+               'bottle', 'bowl', 'can', 'cup', 'plate',
+               'apple', 'mushroom', 'orange', 'pear', 'sweet_pepper',
+               'clock', 'keyboard', 'lamp', 'telephone', 'television',
+               'bed', 'chair', 'couch', 'table', 'wardrobe',
+               'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
+               'bear', 'leopard', 'lion', 'tiger', 'wolf',
+               'bridge', 'castle', 'house', 'road', 'skyscraper',
+               'cloud', 'forest', 'mountain', 'plain', 'sea',
+               'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
+               'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
+               'crab', 'lobster', 'snail', 'spider', 'worm',
+               'baby', 'boy', 'girl', 'man', 'woman',
+               'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
+               'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
+               'maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree',
+               'bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train',
+               'lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']
     return classes.index(token)
 
 
@@ -211,7 +341,7 @@ def get_classes():
 
 def get_superclasses():
     return ['aquatic mammals', 'fish', 'flowers', 'food containers', 'fruit and vegetables',
-            'household electrical devices', 'household furniture','insects',
+            'household electrical devices', 'household furniture', 'insects',
             'large carnivores', 'large man-made outdoor things', 'large natural outdoor scenes',
             'large omnivores and herbivores', 'medium-sized mammals', 'non-insect invertebrates',
             'people', 'reptiles', 'small mammals', 'trees', 'vehicles 1', 'vehicles 2']
@@ -224,9 +354,11 @@ def imshow(img):
     plt.show()
 
 
-def train_val_dataset(dataset, val_split=0.15):
+def train_val_dataset(dataset, val_split, reduction_factor):
     train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
     datasets = {}
+
+    train_idx = [index for i, index in enumerate(train_idx) if i % reduction_factor == 0]
     datasets["train"] = Subset(dataset, train_idx)
     datasets["val"] = Subset(dataset, val_idx)
     return datasets
@@ -326,7 +458,6 @@ def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass):
 
 
 def to_latex_heatmap(n_classes, classes_name, matrix):
-
     # "\newcommand\items{4}   %Number of classes
     # \arrayrulecolor{black} %Table line colors
     # \noindent\begin{tabular}{c*{\items}{|E}|}
@@ -354,6 +485,7 @@ def to_latex_heatmap(n_classes, classes_name, matrix):
 
     print(basic_string)
 
+
 #
 # A  & 100   & 0  & 10  & 0   \\ \hhline{~*\items{|-}|}
 # B  & 10   & 80  & 10  & 0 \\ \hhline{~*\items{|-}|}
@@ -375,7 +507,7 @@ def readpgm(name):
     data = []
     for line in lines[1:]:
         data.extend([int(c) for c in line.split()])
-    return (np.array(data[3:]),(data[1],data[0]),data[2])
+    return (np.array(data[3:]), (data[1], data[0]), data[2])
 
 
 def return_tree_CIFAR(reduced=False):
@@ -413,6 +545,5 @@ def return_tree_CIFAR(reduced=False):
 
 
 if __name__ == "__main__":
-
     # to_latex_heatmap(3, ["a", "b", "c"], [[411, 75, 14], [53, 436, 11], [3,  28, 469]])
     return_tree_CIFAR()
