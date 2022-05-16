@@ -4,77 +4,64 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 from utils import train_val_dataset, hierarchical_cc, get_superclasses, exclude_classes, \
-    class_specific_image_folder_not_alphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR, \
-    imshow, select_n_random, ConvNet, analyze_penalty_behaviour
+    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR, \
+    imshow, select_n_random, ConvNet, sparse2coarse, decimal_to_string
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
-from collections import Counter
-import torchvision
-
+import torch.nn.functional as F
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    # train_dataset_cifar = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
-    # test_dataset = torchvision.datasets.CIFAR100(root='./data', train=False, download=False, transform=transform)
 
     # take as input a list of list with the first element being the classes_name and the second the classes to exclude
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
     # prepare superclasses
     superclasses = get_superclasses()
-    # superclasses = ["aquatic mammals", "fish"]
     classes = get_classes()
     # given the list of superclasses, returns the class to exclude and the coarse label
     n_classes = len(classes[0])
     n_superclasses = len(superclasses)
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
     classes.append(excluded)
-    train_dataset = class_specific_image_folder_not_alphabetic(train_dir, all_dropped_classes=classes, transform=transform)
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes, transform=transform)
 
     batch_size = 128
-    n_epochs = 200
+    n_epochs = 300
     learning_rate = 0.001
     step_size = 40
 
-    hierarchical_loss = False
-    regularization = True
+    hierarchical_loss = True
+    regularization = False
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
-    less_samples = False
-    reduction_factor = 1 if less_samples is False else 16
+    less_samples = True
+    reduction_factor = 1 if less_samples is False else 2
 
     if hierarchical_loss and not regularization:
-        model_name = "..//..//Models//New_190422//resnet_hloss_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//Final_100522//resnet_hloss_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
     elif regularization and not hierarchical_loss:
-        model_name = "..//..//Models//New_190422//resnet_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//Final_100522//resnet_reg_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
     elif regularization and hierarchical_loss:
-        model_name = "..//..//Models//New_190422//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//Final_100522//resnet_hloss_reg_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
     else:
-        model_name = "..//..//Models//New_190422//resnet_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//Final_100522//resnet_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
 
-    model_name = "..//..//Models//New_190422//resnet_wd01_1on{}.pth".format(reduction_factor)
+    print(model_name)
 
-    writer = SummaryWriter(os.path.join("..//Logs//New_190422//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//Logs//Final_100522//", model_name.split("//")[-1].split(".")[0]))
 
     dataset = train_val_dataset(train_dataset, 0.15, reduction_factor)
 
-    # if less_samples:
-    #     evens = list(range(0, len(dataset["train"]), reduction_factor))
-    #     dataset["train"] = torch.utils.data.Subset(dataset["train"], evens)
-    #     train_classes = [dataset["train"].dataset.dataset.targets[i] for i in dataset["train"].indices]
-    #     print(Counter(train_classes))
-    #     val_classes = [dataset["val"].dataset.targets[i] for i in dataset["val"].indices]
-    #     print(Counter(val_classes))
-
-    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True)
+    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True)
 
     lr_ratio = 1 / len(train_loader)
 
@@ -84,18 +71,9 @@ if __name__ == "__main__":
     # print(' '.join("%s" % classes[0][labels[j]] for j in range(10)))
     # imshow(torchvision.utils.make_grid(images))
 
-    # # Extract a random subset of data
-    # images, labels = select_n_random(train_dataset_cifar.data, train_dataset_cifar.targets)
-    # # get the class labels for each image
-    # class_labels = [classes[label] for label in labels]
-    # # log embeddings
-    # features = images.view(-1, 32 * 32)
-    # writer.add_embedding(features, metadata=class_labels, label_img=images.unsqueeze(1))
-
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     model = models.resnet18(pretrained=True)
-    # model = ConvNet(num_classes=n_classes)
 
     # #for sp regularization
     vec = []
@@ -108,39 +86,37 @@ if __name__ == "__main__":
     model.fc = nn.Linear(num_ftrs, out_features=n_classes)  # we have 2 classes now
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate) if regularization else torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     if run_scheduler:
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.3)  # every n=step_size epoch the lr is multiplied by gamma
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.3)
+        # every n=step_size epoch the lr is multiplied by gamma
 
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
     platoon = 0
     best_acc = 0.0
     associated_sup_acc = 0.0
-    running_loss_fine = 0.0  # * inputs.size(0) #multiple the loss for the number of the sample in the batch in order to average it
-    running_coarse_penalty = 0.0
-    running_fine_penalty = 0.0
 
     for epoch in range(n_epochs):
         print('-' * 200)
         print('Epoch {}/{}'.format(epoch + 1, n_epochs))
 
-        # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
             if phase == 'train':
-                model.train()  # Set model to training mode
+                model.train()
                 loader = train_loader
                 n_total_steps = n_total_steps_train
             else:
-                model.eval()  # Set model to evaluate mode
+                model.eval()
                 loader = val_loader
                 n_total_steps = n_total_steps_val
 
             running_loss = 0.0
             running_corrects = 0
             running_corrects_super = 0
-            running_loss_fine = 0.0  # * inputs.size(0) #multiple the loss for the number of the sample in the batch in order to average it
+            running_loss_fine = 0.0
+            running_loss_coarse = 0.0
             running_coarse_penalty = 0.0
             running_fine_penalty = 0.0
 
@@ -154,9 +130,10 @@ if __name__ == "__main__":
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    loss, loss_fine, coarse_penalty, fine_penalty = analyze_penalty_behaviour(outputs, labels, np.asarray(coarse_labels), return_tree_CIFAR(),
-                                           int(n_classes / n_superclasses), n_superclasses, model, w0, device,
-                                           hierarchical_loss, regularization, sp_regularization, weight_decay)
+                    loss, loss_dict = hierarchical_cc(outputs, labels, np.asarray(coarse_labels),
+                                                      return_tree_CIFAR(), int(n_classes / n_superclasses),
+                                                      n_superclasses, model, w0, device, hierarchical_loss,
+                                                      regularization, sp_regularization, weight_decay)
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -165,21 +142,25 @@ if __name__ == "__main__":
                         optimizer.step()
 
                 # statistics
-                running_loss += loss.item() # * inputs.size(0) #multiple the loss for the number of the sample in the batch in order to average it
+                running_loss += loss.item()
                 running_corrects += torch.sum(preds == labels.data)
-                running_corrects_super += accuracy_superclasses(outputs, labels, np.asarray(coarse_labels), len(superclasses))
-                running_loss_fine += loss_fine.item()  # * inputs.size(0) #multiple the loss for the number of the sample in the batch in order to average it
-                running_coarse_penalty += coarse_penalty
-                running_fine_penalty += fine_penalty
+                running_corrects_super += accuracy_superclasses(outputs, labels, np.asarray(coarse_labels),
+                                                                len(superclasses))
+                running_loss_fine += loss_dict["loss_fine"]
+                running_loss_coarse += loss_dict["loss_coarse"]
+                running_coarse_penalty += loss_dict["coarse_penalty"]
+                running_fine_penalty += loss_dict["fine_penalty"]
 
-            epoch_loss = running_loss / dataset_sizes[phase] #average the loss
+            epoch_loss = running_loss / dataset_sizes[phase]  # average the loss
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
             acc_super = running_corrects_super / dataset_sizes[phase]
-            epoch_loss_fine = running_loss_fine / dataset_sizes[phase]  # average the loss
+            epoch_loss_fine = running_loss_fine / dataset_sizes[phase]
+            epoch_loss_coarse = running_loss_coarse / dataset_sizes[phase]
             epoch_coarse_penalty = running_coarse_penalty / dataset_sizes[phase]
             epoch_fine_penalty = running_fine_penalty / dataset_sizes[phase]
 
-            print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f} Acc Super: {:.4f}".format(i + 1, n_total_steps, phase, epoch_loss, epoch_acc, acc_super))
+            print("Step {}/{}, {} Loss: {:.4f} Acc: {:.4f} Acc Super: {:.4f}".format(i + 1, n_total_steps, phase,
+                                                                                     epoch_loss, epoch_acc, acc_super))
 
             if (i + 1) % n_total_steps == 0:
                 if phase == "val":
@@ -198,14 +179,17 @@ if __name__ == "__main__":
                     writer.add_scalar("validation loss", epoch_loss, epoch)
                     writer.add_scalar("validation accuracy", epoch_acc, epoch)
                     writer.add_scalar("validation super accuracy", acc_super, epoch)
-                    writer.add_scalars('training vs. validation loss', {'training': epoch_loss_t, 'validation': epoch_loss}, epoch)
-                    writer.add_scalars('training vs. validation accuracy', {'training': epoch_acc_t, 'validation': epoch_acc}, epoch)
+                    writer.add_scalars('training vs. validation loss',
+                                       {'training': epoch_loss_t, 'validation': epoch_loss}, epoch)
+                    writer.add_scalars('training vs. validation accuracy',
+                                       {'training': epoch_acc_t, 'validation': epoch_acc}, epoch)
                     writer.add_scalars('4 losses validation', {'Loss': epoch_loss,
                                                                'Fine Loss': epoch_loss_fine,
+                                                               'Coarse Loss': epoch_loss_coarse,
+                                                               'Fine Penalty': epoch_fine_penalty,
                                                                'Coarse Penalty': epoch_coarse_penalty,
-                                                               'Fine Penalty': epoch_fine_penalty}, epoch)
-
-
+                                                               'Loss with WD applied': epoch_loss * weight_decay * (
+                                                                           epoch_fine_penalty + epoch_coarse_penalty)}, epoch)
                 elif phase == "train":
                     if run_scheduler:
                         scheduler.step()
@@ -214,10 +198,13 @@ if __name__ == "__main__":
                     writer.add_scalar("training accuracy", epoch_acc, epoch)
                     writer.add_scalar("training super accuracy", acc_super, epoch)
                     writer.add_scalars('4 losses training', {'Loss': epoch_loss,
-                                                               'Fine Loss': epoch_loss_fine,
-                                                               'Coarse Penalty': epoch_coarse_penalty,
-                                                               'Fine Penalty': epoch_fine_penalty}, epoch)
-
+                                                             'Fine Loss': epoch_loss_fine,
+                                                             'Coarse Loss': epoch_loss_coarse,
+                                                             'Fine Penalty': epoch_fine_penalty,
+                                                             'Coarse Penalty': epoch_coarse_penalty,
+                                                             'Loss with WD applied':
+                                                                 epoch_loss * weight_decay * (
+                                                                             epoch_fine_penalty + epoch_coarse_penalty)}, epoch)
                     epoch_loss_t = epoch_loss
                     epoch_acc_t = epoch_acc
                     acc_super_t = acc_super

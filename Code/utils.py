@@ -13,8 +13,189 @@ import torch.nn as nn
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
 
-def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device, hierarchical_loss,
-                    regularization, sp_regularization, weight_decay):
+def cross_entropy(predicted, actual, reduction):
+    actual_onehot = F.one_hot(actual, num_classes=predicted.shape[1])
+    loss = -torch.sum(actual_onehot * torch.log(predicted))
+    return loss if reduction == "sum" else loss / float(predicted.shape[0])
+
+
+def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device,
+                    hierarchical_loss, regularization, sp_regularization, weight_decay):
+    batch = predicted.size(0)
+    # compute the loss for fine classes
+    # loss = F.cross_entropy(predicted, actual, reduction="sum")
+
+    # predicted = F.log_softmax(predicted, dim=1)
+    # loss = F.nll_loss(predicted, actual, reduction="sum")
+
+    predicted = torch.softmax(predicted, dim=1) + 1e-6
+    loss = cross_entropy(predicted, actual, reduction="sum")
+
+    loss_dict = {"loss_fine": loss.item()}
+
+    if hierarchical_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
+
+        for k in range(n_superclass):
+            # obtain the indexes of the superclass number k
+            indexes = list(np.where(coarse_labels == k))[0]
+            # for each index, sum all the probability related to that superclass
+            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0
+            # the classes are 0 to 4
+            predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+            # this line is like the cycle below but more fast
+            # for j in indexes:
+            #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
+
+        actual_coarse = sparse2coarse(actual.cpu().numpy(), coarse_labels)
+
+        # loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="sum")
+        loss_coarse = cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
+                                    reduction="sum")
+
+        loss_dict["loss_coarse"] = loss_coarse.item()
+        loss += loss_coarse
+
+    else:
+        loss_dict["loss_coarse"] = 0.0
+
+    if regularization:
+        coarse_penalty = 0.0
+        # fine_penalty = 0.0
+        mean_betas = []
+        for i in range(n_superclass):
+            coarse_penalty += (torch.linalg.norm(
+                torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0))) ** 2
+            mean_betas.append(
+                1 / n_class * torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0).repeat(n_class, 1))
+        fine_penalty = torch.sum(
+            torch.linalg.norm(model.fc.weight - torch.cat(mean_betas, dim=0).view(n_class * n_superclass, 512),
+                              dim=0) ** 2)
+
+        # faster than
+        # for i in range(n_class * n_superclass):
+        #     sc_index = i//5
+        #     fine_penalty += (torch.linalg.norm(model.fc.weight[i] - 1 / n_class * torch.sum(model.fc.weight[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
+
+        loss_dict["fine_penalty"] = fine_penalty.item()
+        loss_dict["coarse_penalty"] = coarse_penalty.item()
+        loss += weight_decay * (fine_penalty + coarse_penalty)
+
+    else:
+        loss_dict["fine_penalty"] = 0.0
+        loss_dict["coarse_penalty"] = 0.0
+
+    if sp_regularization:
+        w = []
+        for i, (name, W) in enumerate(model.named_parameters()):
+            if 'weight' in name and 'fc' not in name:
+                w.append(W.view(-1))
+        sp_reg = (torch.linalg.norm(torch.cat(w) - w0)) ** 2
+        loss_dict["sp_reg"] = sp_reg.item()
+        loss += weight_decay * sp_reg
+    else:
+        loss_dict["sp_reg"] = 0.0
+
+    return loss, loss_dict
+
+
+def hierarchical_cc_bones(predicted, actual, fine_classes, medium_classes, coarse_classes, model, device,
+                          hierarchical_loss, regularization, sp_regularization, weight_decay):
+    batch = predicted.size(0)
+
+    mapping_medium = torch.tensor([0, 0, 0, 1, 1, 1, 2], dtype=torch.int64)
+    mapping_coarse = torch.tensor([0, 0, 0, 0, 0, 0, 1], dtype=torch.int64)
+
+    predicted = torch.softmax(predicted, dim=1) + 1e-6
+    loss = cross_entropy(predicted, actual, reduction="sum")
+
+    loss_dict = {"loss_fine": loss.item()}
+
+    if hierarchical_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_medium = torch.zeros(batch, len(medium_classes), dtype=torch.float32, device=device)
+        predicted_coarse = torch.zeros(batch, len(coarse_classes), dtype=torch.float32, device=device)
+
+        predicted_medium[:, 0] = torch.sum(predicted[:, 0:3], dim=1)
+        predicted_medium[:, 1] = torch.sum(predicted[:, 3:6], dim=1)
+        predicted_medium[:, 2] = predicted[:, 6]
+
+        predicted_coarse[:, 0] = torch.sum(predicted[:, 0:6], dim=1)
+        predicted_coarse[:, 1] = predicted[:, 6]
+
+        actual_medium = mapping_medium[actual]
+        actual_coarse = mapping_coarse[actual]
+
+        # loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="sum")
+        loss_medium = cross_entropy(predicted_medium, actual_medium.to(device), reduction="sum")
+        loss_coarse = cross_entropy(predicted_coarse, actual_coarse.to(device), reduction="sum")
+
+        loss_dict["loss_medium"] = loss_medium.item()
+        loss_dict["loss_coarse"] = loss_coarse.item()
+        loss += loss_medium + loss_coarse
+
+    else:
+        loss_dict["loss_medium"] = 0.0
+        loss_dict["loss_coarse"] = 0.0
+
+    if regularization:
+        coarse_penalty = 0.0
+        # fine_penalty = 0.0
+        mean_betas = []
+        for i in range(n_superclass):
+            coarse_penalty += (torch.linalg.norm(
+                torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0))) ** 2
+            mean_betas.append(
+                1 / n_class * torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0).repeat(n_class, 1))
+        fine_penalty = torch.sum(
+            torch.linalg.norm(model.fc.weight - torch.cat(mean_betas, dim=0).view(n_class * n_superclass, 512),
+                              dim=0) ** 2)
+
+        # faster than
+        # for i in range(n_class * n_superclass):
+        #     sc_index = i//5
+        #     fine_penalty += (torch.linalg.norm(model.fc.weight[i] - 1 / n_class * torch.sum(model.fc.weight[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
+
+        loss_dict["fine_penalty"] = fine_penalty.item()
+        loss_dict["coarse_penalty"] = coarse_penalty.item()
+        loss += weight_decay * (fine_penalty + coarse_penalty)
+
+    else:
+        loss_dict["fine_penalty"] = 0.0
+        loss_dict["coarse_penalty"] = 0.0
+
+    if sp_regularization:
+        w = []
+        for i, (name, W) in enumerate(model.named_parameters()):
+            if 'weight' in name and 'fc' not in name:
+                w.append(W.view(-1))
+        sp_reg = (torch.linalg.norm(torch.cat(w) - w0)) ** 2
+        loss_dict["sp_reg"] = sp_reg.item()
+        loss += weight_decay * sp_reg
+    else:
+        loss_dict["sp_reg"] = 0.0
+
+    return loss, loss_dict
+
+
+def decimal_to_string(dec):
+    str_old = str(dec)
+    str_new = ""
+    for i in str_old:
+        if i != ".":
+            str_new += i
+    return str_new
+
+
+def sparse2coarse(targets, coarse_labels):
+    # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
+    return coarse_labels[targets]
+
+
+def hierarchical_cc_old(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device,
+                        hierarchical_loss,
+                        regularization, sp_regularization, weight_decay):
     batch = predicted.size(0)
     # compute the loss for fine classes
     loss = F.cross_entropy(predicted, actual, reduction="sum")
@@ -99,12 +280,23 @@ def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclas
         '''
 
         coarse_penalty = 0.0
-        fine_penalty = 0.0
+        # fine_penalty = 0.0
+        mean_betas = []
+
         for i in range(n_superclass):
-            coarse_penalty += (torch.linalg.norm(torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
-        for i in range(n_class * n_superclass):
-            sc_index = i//5
-            fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
+            coarse_penalty += (torch.linalg.norm(
+                torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0))) ** 2
+            mean_betas.append(
+                1 / n_class * torch.sum(model.fc.weight[i * n_class:i * n_class + n_class], dim=0).repeat(n_class, 1))
+
+        fine_penalty = torch.sum(
+            torch.linalg.norm(model.fc.weight - torch.cat(mean_betas, dim=0).view(n_class * n_superclass, 512),
+                              dim=0) ** 2)
+
+        # faster than
+        # for i in range(n_class * n_superclass):
+        #     sc_index = i//5
+        #     fine_penalty += (torch.linalg.norm(model.fc.weight[i] - 1 / n_class * torch.sum(model.fc.weight[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
 
         loss += weight_decay * (fine_penalty + coarse_penalty)
 
@@ -113,94 +305,10 @@ def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclas
         for i, (name, W) in enumerate(model.named_parameters()):
             if 'weight' in name and 'fc' not in name:
                 w.append(W.view(-1))
-        l2_reg = (torch.linalg.norm(torch.cat(w) - w0))**2
+        l2_reg = (torch.linalg.norm(torch.cat(w) - w0)) ** 2
         loss += weight_decay * l2_reg
 
     return loss
-
-
-def analyze_penalty_behaviour(predicted, actual, coarse_labels, tree, n_class, n_superclass, model, w0, device, hierarchical_loss,
-                    regularization, sp_regularization, weight_decay):
-
-    batch = predicted.size(0)
-    # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual, reduction="sum")
-
-    if hierarchical_loss:
-        # define an empty vector which contains 20 superclasses prediction for each samples
-        predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
-
-        for k in range(n_superclass):
-            # obtain the indexes of the superclass number k
-            indexes = list(np.where(coarse_labels == k))[0]
-            # for each index, sum all the probability related to that superclass
-            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0 the classes are 0 to 4
-            predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
-            # this line is like the cycle below but more fast
-            # for j in indexes:
-            #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
-
-        actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-
-        loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
-                                      reduction="sum")
-        loss += loss_coarse
-
-    if regularization:
-
-        coarse_penalty = 0.0
-        fine_penalty = 0.0
-        for i in range(n_superclass):
-            coarse_penalty += (torch.linalg.norm(torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
-        for i in range(n_class * n_superclass):
-            sc_index = i//5
-            fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class], dim=0))) ** 2
-
-        loss = loss_fine + weight_decay * (fine_penalty + coarse_penalty)
-
-    if sp_regularization:
-        w = []
-        for i, (name, W) in enumerate(model.named_parameters()):
-            if 'weight' in name and 'fc' not in name:
-                w.append(W.view(-1))
-        l2_reg = (torch.linalg.norm(torch.cat(w) - w0))**2
-        loss += weight_decay * l2_reg
-
-    return loss, loss_fine, coarse_penalty, fine_penalty
-
-
-def hierarchical_cc_singlelosses(predicted, actual, coarse_labels, n_superclass, model, w0, device, weight_decay):
-    batch = predicted.size(0)
-    # compute the loss for fine classes
-    loss_fine = F.cross_entropy(predicted, actual, reduction="mean")
-
-    # define an empty vector which contains 20 superclasses prediction for each samples
-    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device=device)
-
-    for k in range(n_superclass):
-        # obtain the indexes of the superclass number k
-        indexes = list(np.where(coarse_labels == k))[0]
-        # for each index, sum all the probability related to that superclass
-        # for each line, at the position k, you sum all the classe related to superclass k, so for k=0 the classes are 0 to 4
-        predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
-        # this line is like the cycle below but more fast
-        # for j in indexes:
-        #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
-
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-
-    loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
-                                  reduction="mean")
-
-    w = []
-    for i, (name, W) in enumerate(model.named_parameters()):
-        if 'weight' in name and 'fc' not in name:
-            w.append(W.view(-1))
-    l2_reg = torch.linalg.norm(torch.cat(w) - w0)
-    loss_after_sp = loss_fine + loss_coarse + weight_decay * l2_reg
-    loss_before_sp = loss_fine + loss_coarse
-
-    return loss_after_sp, loss_fine, loss_coarse, loss_before_sp
 
 
 class ConvNet(nn.Module):
@@ -265,7 +373,7 @@ class ClassSpecificImageFolder(datasets.DatasetFolder):
         return classes, class_to_idx
 
 
-class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
+class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
     def __init__(
             self,
             root,
@@ -275,11 +383,11 @@ class class_specific_image_folder_not_alphabetic(datasets.DatasetFolder):
             loader=datasets.folder.default_loader,
             is_valid_file=None):
         self.all_dropped_classes = all_dropped_classes
-        super(class_specific_image_folder_not_alphabetic, self).__init__(root, loader,
-                                                                         IMG_EXTENSIONS if is_valid_file is None else None,
-                                                                         transform=transform,
-                                                                         target_transform=target_transform,
-                                                                         is_valid_file=is_valid_file)
+        super(ClassSpecificImageFolderNotAlphabetic, self).__init__(root, loader,
+                                                                    IMG_EXTENSIONS if is_valid_file is None else None,
+                                                                    transform=transform,
+                                                                    target_transform=target_transform,
+                                                                    is_valid_file=is_valid_file)
         self.imgs = self.samples
 
     def find_classes(self, directory):
@@ -376,11 +484,6 @@ def sparse2coarse_full(targets):
                               2, 10, 0, 1, 16, 12, 9, 13, 15, 13,
                               16, 19, 2, 4, 6, 19, 5, 5, 8, 19,
                               18, 1, 2, 15, 6, 0, 17, 8, 14, 13])
-    return coarse_labels[targets]
-
-
-def sparse2coarse(targets, coarse_labels):
-    # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
     return coarse_labels[targets]
 
 
@@ -546,4 +649,12 @@ def return_tree_CIFAR(reduced=False):
 
 if __name__ == "__main__":
     # to_latex_heatmap(3, ["a", "b", "c"], [[411, 75, 14], [53, 436, 11], [3,  28, 469]])
-    return_tree_CIFAR()
+    # return_tree_CIFAR()
+
+    a = torch.Tensor([[1.2, 3.4, 0.3], [2.2, 3.1, 5.2]])
+    actual = torch.Tensor([2, 1]).type(torch.int64)
+    predicted = torch.softmax(a, 1)
+    loss = cross_entropy(predicted, actual, reduction="sum")
+
+    loss2 = F.cross_entropy(a, actual, reduction="sum")
+    pass

@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 from utils import get_superclasses, exclude_classes, to_latex_heatmap, \
-    class_specific_image_folder_not_alphabetic, get_classes, accuracy_superclasses, sparse2coarse
+    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, sparse2coarse
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
@@ -47,11 +47,11 @@ if __name__ == "__main__":
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
     classes.append(excluded)
 
-    test_dataset = class_specific_image_folder_not_alphabetic(test_dir, all_dropped_classes=classes,
+    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes,
                                                               transform=transform)
 
     classes = classes[0]
-    model_name = "..//..//Models//New_190422//resnet_reg_1on1.pth"
+    model_name = "..//..//Models//Final_100522//resnet_hloss_reg_lr0001_wd01_1on1.pth"
 
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
