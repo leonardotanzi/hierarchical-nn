@@ -48,11 +48,11 @@ def hierarchical_cc(predicted, actual, coarse_labels, tree, n_class, n_superclas
             # for j in indexes:
             #     predicted_coarse[:, k] = predicted_coarse[:, k] + predicted[:, j]
 
-        actual_coarse = sparse2coarse(actual.cpu().numpy(), coarse_labels)
+        coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
+        actual_coarse = sparse2coarse(actual, coarse_labels)
 
         # loss_coarse = F.cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device), reduction="sum")
-        loss_coarse = cross_entropy(predicted_coarse, torch.from_numpy(actual_coarse).type(torch.int64).to(device),
-                                    reduction="sum")
+        loss_coarse = cross_entropy(predicted_coarse, actual_coarse, reduction="sum")
 
         loss_dict["loss_coarse"] = loss_coarse.item()
         loss += loss_coarse
@@ -374,14 +374,8 @@ class ClassSpecificImageFolder(datasets.DatasetFolder):
 
 
 class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
-    def __init__(
-            self,
-            root,
-            all_dropped_classes=[],
-            transform=None,
-            target_transform=None,
-            loader=datasets.folder.default_loader,
-            is_valid_file=None):
+    def __init__(self, root, all_dropped_classes=[], transform=None, target_transform=None,
+                 loader=datasets.folder.default_loader, is_valid_file=None):
         self.all_dropped_classes = all_dropped_classes
         super(ClassSpecificImageFolderNotAlphabetic, self).__init__(root, loader,
                                                                     IMG_EXTENSIONS if is_valid_file is None else None,
@@ -395,7 +389,6 @@ class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
         classes = [c for c in classes if c not in self.all_dropped_classes[1]]
         if not classes:
             raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
-
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
@@ -472,42 +465,7 @@ def train_val_dataset(dataset, val_split, reduction_factor):
     return datasets
 
 
-def sparse2coarse_full(targets):
-    # this is the list of the supergorup to which each class belong (so class 1 belong to superclass 4, classe 2 to superclass 1 and so on)
-    coarse_labels = np.array([4, 1, 14, 8, 0, 6, 7, 7, 18, 3,
-                              3, 14, 9, 18, 7, 11, 3, 9, 7, 11,
-                              6, 11, 5, 10, 7, 6, 13, 15, 3, 15,
-                              0, 11, 1, 10, 12, 14, 16, 9, 11, 5,
-                              5, 19, 8, 8, 15, 13, 14, 17, 18, 10,
-                              16, 4, 17, 4, 2, 0, 17, 4, 18, 17,
-                              10, 3, 2, 12, 12, 16, 12, 1, 9, 19,
-                              2, 10, 0, 1, 16, 12, 9, 13, 15, 13,
-                              16, 19, 2, 4, 6, 19, 5, 5, 8, 19,
-                              18, 1, 2, 15, 6, 0, 17, 8, 14, 13])
-    return coarse_labels[targets]
-
-
 def exclude_classes(superclasses_names):
-    # superclass = [['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-    #               ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
-    #               ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-    #               ['bottle', 'bowl', 'can', 'cup', 'plate'],
-    #               ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-    #               ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-    #               ['bed', 'chair', 'couch', 'table', 'wardrobe'],
-    #               ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-    #               ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-    #               ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-    #               ['cloud', 'forest', 'mountain', 'plain', 'sea'],
-    #               ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-    #               ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-    #               ['crab', 'lobster', 'snail', 'spider', 'worm'],
-    #               ['baby', 'boy', 'girl', 'man', 'woman'],
-    #               ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-    #               ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
-    #               ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
-    #               ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-    #               ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']]
     superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
                        'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
                        'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
@@ -544,7 +502,7 @@ def exclude_classes(superclasses_names):
     return excluded, coarse_labels
 
 
-def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass):
+def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass, device):
     batch = predicted.size(0)
     predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
 
@@ -553,9 +511,12 @@ def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass):
         indexes = list(np.where(coarse_labels == k))[0]
         predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
 
-    actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-    predicted_coarse = np.argmax(predicted_coarse.cpu().detach().numpy(), axis=1)
-    running_corrects = np.sum(predicted_coarse == actual_coarse)
+    coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
+    actual_coarse = sparse2coarse(actual, coarse_labels)
+
+    # actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
+    predicted_coarse = torch.argmax(predicted_coarse, dim=1)
+    running_corrects = torch.sum(predicted_coarse == actual_coarse)
 
     return running_corrects
 
