@@ -39,18 +39,26 @@ if __name__ == "__main__":
 
     run_scheduler = False
     sp_regularization = False
-    weight_decay = 0.1
+    weight_decay = 0.01
     less_samples = False
     reduction_factor = 1 if less_samples is False else 2
 
+    # Path
+    name = "bonesfreezed"
+    model_path = "..//..//Models//Final_100522//"
     if hierarchical_loss and not regularization:
-        model_name = "..//..//Models//Final_100522//bones_hloss_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
+        model_name = os.path.join(model_path,
+                                  f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
     elif regularization and not hierarchical_loss:
-        model_name = "..//..//Models//Final_100522//bones_reg_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
+        model_name = os.path.join(model_path,
+                                  f"{name}_reg_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
     elif regularization and hierarchical_loss:
-        model_name = "..//..//Models//Final_100522//bones_hloss_reg_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
+        model_name = os.path.join(model_path,
+                                  f"{name}_hloss_reg_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
     else:
-        model_name = "..//..//Models//Final_100522//bones_lr{}_wd{}_1on{}.pth".format(decimal_to_string(learning_rate), decimal_to_string(weight_decay), reduction_factor)
+        model_name = os.path.join(model_path,
+                                  f"{name}_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
+    print(f"Model name: {model_name}")
 
     writer = SummaryWriter(os.path.join("..//Logs//Final_100522//", model_name.split("//")[-1].split(".")[0]))
 
@@ -70,6 +78,8 @@ if __name__ == "__main__":
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     model = models.resnet18(pretrained=True)
+    for param in model.parameters():
+        param.requires_grad = False
 
     # #for sp regularization
     vec = []

@@ -12,6 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
 import torch.nn.functional as F
 import timeit
+import random
+
 
 if __name__ == "__main__":
 
@@ -26,16 +28,18 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnetfreezed"
+    name = "invertedsup"
 
     run_scheduler = False
     sp_regularization = False
-    weight_decay = 0.01
+    weight_decay = 0.1
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
     # Classes and superclasses
     classes = get_classes()
+    random.seed(0)
+    random.shuffle(classes[0])
     superclasses = get_superclasses()
     n_classes = len(classes[0])
     n_superclasses = len(superclasses)
