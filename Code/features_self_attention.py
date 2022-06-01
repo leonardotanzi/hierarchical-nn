@@ -13,15 +13,15 @@ class TransformerBlock(nn.Module):
     def __init__(self):
         super(TransformerBlock, self).__init__()
 
-        self.mhsa = nn.MultiheadAttention(embed_dim=512, num_heads=4)
+        self.mhsa = nn.MultiheadAttention(embed_dim=512, num_heads=4, batch_first=True)
         self.mlp_exp = nn.Linear(in_features=512, out_features=1024)
         self.mlp_compr = nn.Linear(in_features=1024, out_features=512)
 
     def forward(self, x):
-        x_mhsa = self.mhsa(x, x, x)
+        x_mhsa, _ = self.mhsa(x, x, x)
         x_mlp = self.mlp_exp(x_mhsa)
         x_mlp = self.mlp_compr(x_mlp)
-        return x
+        return x_mlp
 
 
 class CNNEncoder(nn.Module):
@@ -58,7 +58,7 @@ class CNNEncoder(nn.Module):
         self.proj6 = nn.Linear(in_features=1024 * 2 * 2, out_features=512)
 
         self.transf = TransformerBlock()
-        self.final_cl = nn.Linear(in_features=512, out_features=n_classes)
+        self.final_cl = nn.Linear(in_features=512*6, out_features=n_classes)
 
     def forward(self, x):
 
@@ -93,6 +93,7 @@ class CNNEncoder(nn.Module):
         x = torch.cat([token1, token2, token3, token4, token5, token6], dim=1)
         x = x.view(-1, 6, 512)
         x = self.transf(x)
+        x = x.view(-1, 512*6)
         x = self.final_cl(x)
 
         return xfcs, xfc, x
@@ -149,6 +150,7 @@ if __name__ == "__main__":
             running_loss = 0.0
             running_acc = 0.0
             running_superacc = 0.0
+            running_attention_acc = 0.0
 
             if phase is "train":
                 loader = train_loader
@@ -162,7 +164,7 @@ if __name__ == "__main__":
 
                 with torch.set_grad_enabled(phase == "train"):
 
-                    superclass_output, class_output = model(images)
+                    superclass_output, class_output, attention_output = model(images)
 
                     coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
                     superclass_labels = sparse2coarse(class_labels, coarse_labels)
@@ -170,10 +172,13 @@ if __name__ == "__main__":
                     loss_superclass = F.cross_entropy(superclass_output, superclass_labels)
                     loss_class = F.cross_entropy(class_output, class_labels)
 
-                    loss = loss_superclass + loss_class
+                    loss_attention = F.cross_entropy(attention_output, class_labels)
+
+                    loss = 0.5*(loss_superclass + loss_class) + 0.5*loss_attention
 
                     _, class_preds = torch.max(class_output, 1)
                     _, superclass_preds = torch.max(superclass_output, 1)
+                    _, attention_preds = torch.max(attention_output, 1)
 
                     if phase is "train":
                         optim.zero_grad()
@@ -183,12 +188,14 @@ if __name__ == "__main__":
                 running_loss += loss.item()
                 running_acc += torch.sum(class_preds == class_labels.data).item()
                 running_superacc += torch.sum(superclass_preds == superclass_labels.data).item()
+                running_attention_acc += torch.sum(attention_preds == class_labels.data).item()
 
             epoch_acc = running_acc / dataset_sizes[phase]
             epoch_superacc = running_superacc / dataset_sizes[phase]
+            epoch_attention = running_attention_acc / dataset_sizes[phase]
             epoch_loss = running_loss / dataset_sizes[phase]
 
-            print(f"{phase}: loss {epoch_loss:.4f}, accuracy {epoch_acc:.4f}, super accuracy {epoch_superacc:.4f}")
+            print(f"{phase}: loss {epoch_loss:.4f}, accuracy {epoch_acc:.4f}, super accuracy {epoch_superacc:.4f}, attention accuracy {epoch_attention:.4f}")
 
 
 
