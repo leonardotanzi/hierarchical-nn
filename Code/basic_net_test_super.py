@@ -13,21 +13,6 @@ import pandas as pd
 import random
 
 
-def evaluate_regularization(model, n_class=5, n_superclass=20):
-    coarse_penalty = 0.0
-    fine_penalty = 0.0
-    for i in range(n_superclass):
-        coarse_penalty += (torch.linalg.norm(
-            torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
-    for i in range(n_class * n_superclass):
-        sc_index = 1 // 5
-        fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(
-            model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class]))) ** 2
-
-    print(coarse_penalty)
-    print(fine_penalty)
-
-
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -35,15 +20,13 @@ if __name__ == "__main__":
     test_dir = "..//..//cifar//test//"
     batch_size = 128
 
-    model_name = "..//..//Models//New_020622//resnetfreezed_lr0001_wd01_1on16.pth"
+    model_name = "..//..//Models//New_020622//resnet_coarse_lr0001_wd01_1on16.pth"
 
     latex = False
     plot_cf = True
 
     superclasses = get_superclasses()
     classes = get_classes()
-    random.seed(0)
-    random.shuffle(classes[0])
     n_classes = len(classes[0])
     n_superclasses = len(superclasses)
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
@@ -57,7 +40,7 @@ if __name__ == "__main__":
 
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=n_classes)
+    model.fc = nn.Linear(num_ftrs, out_features=n_superclasses)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()
@@ -70,6 +53,8 @@ if __name__ == "__main__":
     # iterate over test data
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
+        labels = torch.from_numpy(sparse2coarse(labels.numpy(), np.asarray(coarse_labels)))
+        labels = labels.type(torch.int64)
         labels = labels.to(device)
 
         output = model(inputs)
@@ -85,28 +70,6 @@ if __name__ == "__main__":
     print(cf_matrix)
 
     # CLASSES
-    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(classes), index=[i for i in classes],
-                         columns=[i for i in classes])
-
-    if latex:
-        print(to_latex_heatmap(len(classes), classes,
-                               (cf_matrix / np.sum(cf_matrix) * len(classes)) * 100))
-
-    if plot_cf:
-        plt.figure(figsize=(48, 28))
-        sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0)
-        plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(model_name.split("//")[-1].split(".")[0]))
-
-    # SUPERCLASSES
-    _, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    y_true_super = sparse2coarse(y_true, np.asarray(coarse_labels))
-    y_pred_super = sparse2coarse(y_pred, np.asarray(coarse_labels))
-    print(classification_report(y_true_super, y_pred_super))
-    # Build confusion matrix
-    cf_matrix = confusion_matrix(y_true_super, y_pred_super)
-    print(cf_matrix)
-
-    # CLASSES
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(superclasses), index=[i for i in superclasses],
                          columns=[i for i in superclasses])
 
@@ -117,6 +80,6 @@ if __name__ == "__main__":
     if plot_cf:
         plt.figure(figsize=(12, 7))
         sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0) #vmax=1)
-        plt.savefig("..\\ConfusionMatrixes\\{}-SuperCM.png".format(model_name.split("//")[-1].split(".")[0]))
+        plt.savefig("..\\ConfusionMatrixes\\{}-CMpercentageSuperOnly.png".format(model_name.split("\\")[-1].split(".")[0]))
 
 

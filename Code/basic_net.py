@@ -26,9 +26,9 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.15
 
-    hierarchical_loss = True
-    regularization = True
-    name = "invertedsup"
+    hierarchical_loss = False
+    regularization = False
+    name = "resnetfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     classes.append(excluded)
 
     # Path
-    model_path = "..//..//Models//Final_100522//"
+    model_path = "..//..//Models//New_020622//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     print(f"Model name: {model_name}")
 
     # Log
-    writer = SummaryWriter(os.path.join("..//Logs//Final_100522//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//Logs//New_020622//", model_name.split("//")[-1].split(".")[0]))
 
     # Dataset
     train_dir = "..//..//cifar//train//"

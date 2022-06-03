@@ -9,27 +9,96 @@ from torchsummary import summary
 import math
 
 
-class TransformerBlock(nn.Module):
-    def __init__(self):
-        super(TransformerBlock, self).__init__()
+def attention(q, k, v, dk):
 
-        self.mhsa = nn.MultiheadAttention(embed_dim=512, num_heads=4, batch_first=True)
-        self.mlp_exp = nn.Linear(in_features=512, out_features=1024)
-        self.mlp_compr = nn.Linear(in_features=1024, out_features=512)
+    scores = F.softmax(torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(dk), dim=-1)  # transpose last two dimension
+
+    output = torch.matmul(scores, v)
+
+    return output, scores
+
+
+class MultiHeadSelfAttention(nn.Module):
+    def __init__(self, heads, d_model):
+        super(MultiHeadSelfAttention, self).__init__()
+
+        self.d_model = d_model
+        self.heads = heads
+        self.d_k = d_model // heads  # why?
+
+        self.Wq = nn.Linear(in_features=self.d_model, out_features=self.d_model)
+        self.Wk = nn.Linear(in_features=self.d_model, out_features=self.d_model)
+        self.Wv = nn.Linear(in_features=self.d_model, out_features=self.d_model)
+
+        self.W0 = nn.Linear(d_model, d_model)
+
+        self.attention_scores = None
+
+    def forward(self, q, k, v):  # here q, k, v are actually the input embedding, multiplied by W to obtain q,k,v
+        batch_size = q.size(0)
+
+        # multiply input for Wq, Wk, Wv to get w, q, v. then reshape including the number of heads
+        q = self.Wq(q).view(batch_size, -1, self.heads, self.d_k)
+        k = self.Wk(k).view(batch_size, -1, self.heads, self.d_k)
+        v = self.Wv(v).view(batch_size, -1, self.heads, self.d_k)
+
+        # transpose to have [batch, heads, seq_len, d_model]
+        q = q.transpose(1, 2)
+        k = k.transpose(1, 2)
+        v = v.transpose(1, 2)
+
+        # compute output and scores for self-attention matrix
+        att_output, scores = attention(q, k, v, self.d_k)
+
+        self.attention_scores = scores
+
+        # concatenate heads and put through final linear layer
+        concat = att_output.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
+        output = self.W0(concat)
+
+        return output
+
+
+class FeedForward(nn.Module):
+    def __init__(self, d_model, d_expansion=2048):
+        super(FeedForward, self).__init__()
+        self.d_model = d_model
+        self.expansion = nn.Linear(in_features=d_model, out_features=d_expansion)
+        self.compression = nn.Linear(in_features=d_expansion, out_features=d_model)
 
     def forward(self, x):
-        x_mhsa, _ = self.mhsa(x, x, x)
-        x_mlp = self.mlp_exp(x_mhsa)
-        x_mlp = self.mlp_compr(x_mlp)
-        return x_mlp
+        x = torch.relu(self.expansion(x))
+        x = self.compression(x)  # why no relu here?
+        return x
+
+
+class TransformerBlock(nn.Module):
+    def __init__(self, seq_len, d_model, heads, n_classes):
+        super(TransformerBlock, self).__init__()
+        # self.embedding = nn.Linear(channels, d_model)
+        self.attn = MultiHeadSelfAttention(heads, d_model)
+        self.ff = FeedForward(d_model)
+        self.linear = nn.Linear(seq_len*d_model, n_classes)
+
+    def forward(self, x):
+        # x_emb = self.embedding(x)
+        x_att = self.attn(x, x, x) + x
+        x_ff = self.ff(x_att) + x_att
+        x_flat = torch.flatten(x_ff, start_dim=1)
+        x_cls = self.linear(x_flat)
+        return x_cls
 
 
 class CNNEncoder(nn.Module):
-    def __init__(self, n_superclasses, n_classes, input_size):
+    def __init__(self, n_superclasses, n_classes, input_size, seq_len, d_model, heads):
         super(CNNEncoder, self).__init__()
 
         self.first_view = 128 * (input_size // 8) * (input_size // 8)
         self.second_view = 1024 * (input_size // 64) * (input_size // 64)
+
+        self.seq_len = seq_len
+        self.d_model = d_model
+        self.heads = heads
 
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=(3, 3), padding="same")
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), padding="same")
@@ -49,16 +118,15 @@ class CNNEncoder(nn.Module):
 
         ########################################
 
-        self.proj1 = nn.Linear(in_features=32 * 64 * 64, out_features=512)
-        self.proj2 = nn.Linear(in_features=64 * 32 * 32, out_features=512)
-        self.proj3 = nn.Linear(in_features=128 * 16 * 16, out_features=512)
+        self.proj1 = nn.Linear(in_features=32 * 64 * 64, out_features=d_model)
+        self.proj2 = nn.Linear(in_features=64 * 32 * 32, out_features=d_model)
+        self.proj3 = nn.Linear(in_features=128 * 16 * 16, out_features=d_model)
 
-        self.proj4 = nn.Linear(in_features=256 * 8 * 8, out_features=512)
-        self.proj5 = nn.Linear(in_features=512 * 4 * 4, out_features=512)
-        self.proj6 = nn.Linear(in_features=1024 * 2 * 2, out_features=512)
+        self.proj4 = nn.Linear(in_features=256 * 8 * 8, out_features=d_model)
+        self.proj5 = nn.Linear(in_features=512 * 4 * 4, out_features=d_model)
+        self.proj6 = nn.Linear(in_features=1024 * 2 * 2, out_features=d_model)
 
-        self.transf = TransformerBlock()
-        self.final_cl = nn.Linear(in_features=512*6, out_features=n_classes)
+        self.transformer = TransformerBlock(seq_len, d_model, heads, n_classes)
 
     def forward(self, x):
 
@@ -92,20 +160,9 @@ class CNNEncoder(nn.Module):
 
         x = torch.cat([token1, token2, token3, token4, token5, token6], dim=1)
         x = x.view(-1, 6, 512)
-        x = self.transf(x)
-        x = x.view(-1, 512*6)
-        x = self.final_cl(x)
+        x = self.transformer(x)
 
         return xfcs, xfc, x
-
-# class SAFModel(nn.Module):
-def scaled_dot_product(q, k, v):
-    d_k = q.size()[-1]
-    s = torch.matmul(q, torch.transpose(k, 0, 1))
-    s /= math.sqrt(d_k)
-    attention = F.softmax(s, dim=-1)
-    values = torch.matmul(attention, v)
-    return values, attention
 
 
 if __name__ == "__main__":
@@ -115,6 +172,10 @@ if __name__ == "__main__":
     validation_split = 0.15
     n_epochs = 100
     input_size = 128
+
+    d_model = 512
+    heads = 2
+    seq_len = 6  #n layer conv
 
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
@@ -135,7 +196,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
-    model = CNNEncoder(n_superclasses, n_classes, input_size)
+    model = CNNEncoder(n_superclasses, n_classes, input_size, seq_len, d_model, heads)
     model.to(device)
 
     print(summary(model, (3, 128, 128)))
@@ -143,7 +204,7 @@ if __name__ == "__main__":
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(n_epochs):
-        print(f"Epoch {epoch}")
+        print(f"Epoch {epoch+1}/{n_epochs}")
 
         for phase in ["train", "val"]:
 

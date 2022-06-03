@@ -4,8 +4,8 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 from utils import train_val_dataset, hierarchical_cc, get_superclasses, exclude_classes, \
-    class_specific_image_folder_not_alphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR, \
-    imshow, select_n_random, ConvNet, analyze_penalty_behaviour, sparse2coarse
+    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR, \
+    imshow, select_n_random, ConvNet, sparse2coarse
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     n_superclasses = len(superclasses)
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
     classes.append(excluded)
-    train_dataset = class_specific_image_folder_not_alphabetic(train_dir, all_dropped_classes=classes,
+    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes,
                                                                transform=transform)
 
     batch_size = 128
@@ -44,21 +44,21 @@ if __name__ == "__main__":
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
-    less_samples = False
+    less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
     if hierarchical_loss and not regularization:
-        model_name = "..//..//Models//New_190422//resnet_hloss_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//New_020622//resnet_hloss_1on{}.pth".format(reduction_factor)
     elif regularization and not hierarchical_loss:
-        model_name = "..//..//Models//New_190422//resnet_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//New_020622//resnet_reg_1on{}.pth".format(reduction_factor)
     elif regularization and hierarchical_loss:
-        model_name = "..//..//Models//New_190422//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//New_020622//resnet_hloss_reg_1on{}.pth".format(reduction_factor)
     else:
-        model_name = "..//..//Models//New_190422//resnet_1on{}.pth".format(reduction_factor)
+        model_name = "..//..//Models//New_020622//resnet_1on{}.pth".format(reduction_factor)
 
-    model_name = "..//..//Models//New_190422//resnet_20outcoarse_lr0001_1on{}.pth".format(reduction_factor)
+    model_name = "..//..//Models//New_020622//resnet_coarse_lr0001_wd01_1on{}.pth".format(reduction_factor)
 
-    writer = SummaryWriter(os.path.join("..//Logs//New_190422//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//Logs//New_020622//", model_name.split("//")[-1].split(".")[0]))
 
     dataset = train_val_dataset(train_dataset, 0.15, reduction_factor)
 
@@ -92,7 +92,8 @@ if __name__ == "__main__":
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     model = models.resnet18(pretrained=True)
-    # model = ConvNet(num_classes=n_classes)
+    for param in model.parameters():
+        param.requires_grad = False
 
     # #for sp regularization
     vec = []
@@ -105,7 +106,7 @@ if __name__ == "__main__":
     model.fc = nn.Linear(num_ftrs, out_features=n_superclasses)
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate) if regularization else torch.optim.SGD(
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization else torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     if run_scheduler:
@@ -153,11 +154,6 @@ if __name__ == "__main__":
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
-                    # loss, _, loss_dict = analyze_penalty_behaviour(outputs,
-                    #                                     labels, np.asarray(coarse_labels), return_tree_CIFAR(),
-                    #                                     int(n_classes / n_superclasses), n_superclasses, model, w0,
-                    #                                     device, hierarchical_loss, regularization, sp_regularization,
-                    #                                     weight_decay)
 
                     loss = F.cross_entropy(outputs, labels, reduction="sum")
 
