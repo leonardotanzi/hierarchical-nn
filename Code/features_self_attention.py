@@ -78,15 +78,16 @@ class TransformerBlock(nn.Module):
         # self.embedding = nn.Linear(channels, d_model)
         self.attn = MultiHeadSelfAttention(heads, d_model)
         self.ff = FeedForward(d_model)
-        self.linear = nn.Linear(seq_len*d_model, n_classes)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
 
     def forward(self, x):
         # x_emb = self.embedding(x)
         x_att = self.attn(x, x, x) + x
-        x_ff = self.ff(x_att) + x_att
-        x_flat = torch.flatten(x_ff, start_dim=1)
-        x_cls = self.linear(x_flat)
-        return x_cls
+        x_norm1 = self.norm1(x_att)
+        x_ff = self.ff(x_norm1) + x_norm1
+        x_norm2 = self.norm2(x_ff)
+        return x_norm2
 
 
 class CNNEncoder(nn.Module):
@@ -126,7 +127,11 @@ class CNNEncoder(nn.Module):
         self.proj5 = nn.Linear(in_features=512 * 4 * 4, out_features=d_model)
         self.proj6 = nn.Linear(in_features=1024 * 2 * 2, out_features=d_model)
 
-        self.transformer = TransformerBlock(seq_len, d_model, heads, n_classes)
+        self.transformer1 = TransformerBlock(seq_len, d_model, heads, n_classes)
+        self.transformer2 = TransformerBlock(seq_len, d_model, heads, n_classes)
+        self.transformer3 = TransformerBlock(seq_len, d_model, heads, n_classes)
+
+        self.linear = nn.Linear(seq_len * d_model, n_classes)
 
     def forward(self, x):
 
@@ -160,7 +165,12 @@ class CNNEncoder(nn.Module):
 
         x = torch.cat([token1, token2, token3, token4, token5, token6], dim=1)
         x = x.view(-1, 6, 512)
-        x = self.transformer(x)
+        x = self.transformer1(x)
+        x = self.transformer2(x)
+        x = self.transformer3(x)
+
+        x = torch.flatten(x, start_dim=1)
+        x = self.linear(x)
 
         return xfcs, xfc, x
 
@@ -199,7 +209,7 @@ if __name__ == "__main__":
     model = CNNEncoder(n_superclasses, n_classes, input_size, seq_len, d_model, heads)
     model.to(device)
 
-    print(summary(model, (3, 128, 128)))
+    # print(summary(model, (3, 128, 128)))
 
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
 
@@ -213,7 +223,7 @@ if __name__ == "__main__":
             running_superacc = 0.0
             running_attention_acc = 0.0
 
-            if phase is "train":
+            if phase == "train":
                 loader = train_loader
             else:
                 loader = val_loader
@@ -232,16 +242,39 @@ if __name__ == "__main__":
 
                     loss_superclass = F.cross_entropy(superclass_output, superclass_labels)
                     loss_class = F.cross_entropy(class_output, class_labels)
-
                     loss_attention = F.cross_entropy(attention_output, class_labels)
 
-                    loss = 0.5*(loss_superclass + loss_class) + 0.5*loss_attention
+                    if epoch < 10:
+                        for name, param in model.named_parameters():
+                            name = name.split(".")[0]
+                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super"]:
+                                param.requires_grad = True
+                            else:
+                                param.requires_grad = False
+                        loss = loss_superclass
+
+                    elif 10 < epoch < 30:
+                        for name, param in model.named_parameters():
+                            name = name.split(".")[0]
+                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5", "conv6", "fc_super", "fc"]:
+                                param.requires_grad = True
+                            else:
+                                param.requires_grad = False
+                        loss = loss_superclass + loss_class
+                    else:
+                        for name, param in model.named_parameters():
+                            name = name.split(".")[0]
+                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5", "conv6", "fc_super", "fc"]:
+                                param.requires_grad = False
+                            else:
+                                param.requires_grad = True
+                        loss = loss_attention
 
                     _, class_preds = torch.max(class_output, 1)
                     _, superclass_preds = torch.max(superclass_output, 1)
                     _, attention_preds = torch.max(attention_output, 1)
 
-                    if phase is "train":
+                    if phase == "train":
                         optim.zero_grad()
                         loss.backward()
                         optim.step()
@@ -254,7 +287,7 @@ if __name__ == "__main__":
             epoch_acc = running_acc / dataset_sizes[phase]
             epoch_superacc = running_superacc / dataset_sizes[phase]
             epoch_attention = running_attention_acc / dataset_sizes[phase]
-            epoch_loss = running_loss / dataset_sizes[phase]
+            epoch_loss = running_loss / len(loader)
 
             print(f"{phase}: loss {epoch_loss:.4f}, accuracy {epoch_acc:.4f}, super accuracy {epoch_superacc:.4f}, attention accuracy {epoch_attention:.4f}")
 
