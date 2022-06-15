@@ -245,29 +245,10 @@ if __name__ == "__main__":
                     loss_attention = F.cross_entropy(attention_output, class_labels)
 
                     if epoch < 10:
-                        for name, param in model.named_parameters():
-                            name = name.split(".")[0]
-                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super"]:
-                                param.requires_grad = True
-                            else:
-                                param.requires_grad = False
                         loss = loss_superclass
-
-                    elif 10 < epoch < 30:
-                        for name, param in model.named_parameters():
-                            name = name.split(".")[0]
-                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5", "conv6", "fc_super", "fc"]:
-                                param.requires_grad = True
-                            else:
-                                param.requires_grad = False
+                    elif 10 < epoch < 20:
                         loss = loss_superclass + loss_class
                     else:
-                        for name, param in model.named_parameters():
-                            name = name.split(".")[0]
-                            if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5", "conv6", "fc_super", "fc"]:
-                                param.requires_grad = False
-                            else:
-                                param.requires_grad = True
                         loss = loss_attention
 
                     _, class_preds = torch.max(class_output, 1)
@@ -278,6 +259,29 @@ if __name__ == "__main__":
                         optim.zero_grad()
                         loss.backward()
                         optim.step()
+                        if epoch < 10:
+                            for name, param in model.named_parameters():
+                                name = name.split(".")[0]
+                                if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super"]:
+                                    param.requires_grad = True
+                                else:
+                                    param.requires_grad = False
+                        elif 10 < epoch < 20:
+                            for name, param in model.named_parameters():
+                                name = name.split(".")[0]
+                                if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5",
+                                            "conv6", "fc_super", "fc"]:
+                                    param.requires_grad = True
+                                else:
+                                    param.requires_grad = False
+                        else:
+                            for name, param in model.named_parameters():
+                                name = name.split(".")[0]
+                                if name in ["conv1", "conv2", "conv3", "pre_fc_super", "fc_super", "conv4", "conv5",
+                                            "conv6", "fc_super", "fc"]:
+                                    param.requires_grad = False
+                                else:
+                                    param.requires_grad = True
 
                 running_loss += loss.item()
                 running_acc += torch.sum(class_preds == class_labels.data).item()

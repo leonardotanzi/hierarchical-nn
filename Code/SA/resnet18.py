@@ -36,7 +36,6 @@ class ResBlock(nn.Module):
         return torch.relu(x + shortcut)
 
 
-
 class ResNet18(nn.Module):
     def __init__(self, n_classes):
         super(ResNet18, self).__init__()

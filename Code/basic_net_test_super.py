@@ -3,14 +3,14 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import get_superclasses, exclude_classes, to_latex_heatmap, \
-    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, sparse2coarse
+from utils import get_superclasses, to_latex_heatmap, get_classes, accuracy_superclasses, sparse2coarse, save_list
+from dataset import exclude_classes, ClassSpecificImageFolderNotAlphabetic
+from visualization import plot_graph_top3superclasses, plot_graph, plot_box
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
-import random
 
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     test_dir = "..//..//cifar//test//"
     batch_size = 128
 
-    model_name = "..//..//Models//New_020622//resnet_coarse_lr0001_wd01_1on16.pth"
+    model_name = "..//..//Models//New_020622//resnetfreezed_onlycoarse_lr0001_wd01_1on16.pth"
 
     latex = False
     plot_cf = True
@@ -49,10 +49,14 @@ if __name__ == "__main__":
 
     y_pred = []
     y_true = []
+    labels_fine = []
 
     # iterate over test data
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
+
+        labels_fine.extend(labels.numpy())
+
         labels = torch.from_numpy(sparse2coarse(labels.numpy(), np.asarray(coarse_labels)))
         labels = labels.type(torch.int64)
         labels = labels.to(device)
@@ -65,6 +69,13 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
+    # save_list("JustCoarse.pkl", y_pred)
+
+    # plot_graph(y_pred, labels_fine, classes)
+    # plot_graph_top3superclasses(y_pred, labels_fine, classes, superclasses)
+    plot_box(labels_fine, classes, superclasses)
+
+    # Classification Matrixes
     print(classification_report(y_true, y_pred))
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)

@@ -3,14 +3,15 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import train_val_dataset, hierarchical_cc, get_superclasses, exclude_classes, \
-    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, return_tree_CIFAR, \
-    imshow, select_n_random, ConvNet, sparse2coarse, decimal_to_string
+from losses import hierarchical_cc
+from dataset import train_val_dataset, exclude_classes, ClassSpecificImageFolderNotAlphabetic, ImbalanceCIFAR100
+from utils import get_superclasses, get_classes, accuracy_superclasses, return_tree_CIFAR, \
+    imshow, select_n_random, sparse2coarse, decimal_to_string
+from nets import ConvNet
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
-import torch.nn.functional as F
 import timeit
 import random
 
@@ -24,22 +25,22 @@ if __name__ == "__main__":
     n_epochs = 100
     learning_rate = 0.001
     scheduler_step_size = 40
-    validation_split = 0.15
+    validation_split = 0.1
 
-    hierarchical_loss = False
-    regularization = False
-    name = "resnetfreezed"
+    hierarchical_loss = True
+    regularization = True
+    name = "resnetimbalanced"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
-    less_samples = True
+    less_samples = False
     reduction_factor = 1 if less_samples is False else 16
 
     # Classes and superclasses
     classes = get_classes()
-    random.seed(0)
-    random.shuffle(classes[0])
+    # random.seed(0)
+    # random.shuffle(classes[0])
     superclasses = get_superclasses()
     n_classes = len(classes[0])
     n_superclasses = len(superclasses)
@@ -69,7 +70,9 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes, transform=transform)
+    # train_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_dropped_classes=classes, transform=transform)
+    train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=classes[0])
+
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4,
                               pin_memory=True)

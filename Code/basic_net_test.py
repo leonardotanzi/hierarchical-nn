@@ -3,29 +3,16 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import get_superclasses, exclude_classes, to_latex_heatmap, \
-    ClassSpecificImageFolderNotAlphabetic, get_classes, accuracy_superclasses, sparse2coarse
+from utils import get_superclasses, to_latex_heatmap, get_classes, accuracy_superclasses, sparse2coarse, save_list
+from dataset import exclude_classes, ClassSpecificImageFolderNotAlphabetic
+from visualization import plot_graph_top3superclasses, plot_graph
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
 import random
-
-
-def evaluate_regularization(model, n_class=5, n_superclass=20):
-    coarse_penalty = 0.0
-    fine_penalty = 0.0
-    for i in range(n_superclass):
-        coarse_penalty += (torch.linalg.norm(
-            torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
-    for i in range(n_class * n_superclass):
-        sc_index = 1 // 5
-        fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(
-            model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class]))) ** 2
-
-    print(coarse_penalty)
-    print(fine_penalty)
+import plotly.express as px
 
 
 if __name__ == "__main__":
@@ -35,15 +22,15 @@ if __name__ == "__main__":
     test_dir = "..//..//cifar//test//"
     batch_size = 128
 
-    model_name = "..//..//Models//New_020622//resnetfreezed_lr0001_wd01_1on16.pth"
+    model_name = "..//..//Models//New_020622//resnetfreezed_hloss_reg_lr0001_wd01_1on16.pth"
 
     latex = False
     plot_cf = True
 
     superclasses = get_superclasses()
     classes = get_classes()
-    random.seed(0)
-    random.shuffle(classes[0])
+    # random.seed(0)
+    # random.shuffle(classes[0])
     n_classes = len(classes[0])
     n_superclasses = len(superclasses)
     excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
@@ -80,6 +67,14 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
+    _, coarse_labels = exclude_classes(superclasses_names=superclasses)
+    y_pred = sparse2coarse(y_pred, np.asarray(coarse_labels))
+
+    # save_list("HLoss.pkl", y_pred)
+    # plot_graph(y_pred, y_true, classes)
+    # plot_graph_top3superclasses(y_pred, y_true, classes, superclasses)
+
+    # Confusion Matrixes
     print(classification_report(y_true, y_pred))
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
