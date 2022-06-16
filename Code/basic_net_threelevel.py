@@ -24,20 +24,20 @@ if __name__ == "__main__":
 
     batch_size = 128
     n_epochs = 100
-    learning_rate = 0.01
+    learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
     hierarchical_loss = True
     medium_loss = False
-    coarse_loss = False
+    coarse_loss = True
     regularization = False
-    name = "resnet_fineloss"
+    name = "resnet_FC"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
-    less_samples = False
+    less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
     # Classes and superclasses
@@ -178,7 +178,7 @@ if __name__ == "__main__":
             epoch_loss_coarse = running_loss_coarse / dataset_sizes[phase]
 
             print(f"Step {i + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f}, Acc: {epoch_acc:.4f}, "
-                  f"Medium Acc: {epoch_acc_medium:.4f}, Coarse Acc: {epoch_loss_coarse:.4f}")
+                  f"Medium Acc: {epoch_acc_medium:.4f}, Coarse Acc: {epoch_acc_coarse:.4f}")
 
             if (i + 1) % n_total_steps == 0:
                 if phase == "val":
@@ -219,7 +219,7 @@ if __name__ == "__main__":
                     writer.add_scalar("Training loss", epoch_loss, epoch)
                     writer.add_scalar("Training accuracy", epoch_acc, epoch)
                     writer.add_scalar("Training medium accuracy", epoch_acc_medium, epoch)
-                    writer.add_scalar("Training coarse accuracy", epoch_acc_medium, epoch)
+                    writer.add_scalar("Training coarse accuracy", epoch_acc_coarse, epoch)
 
                     writer.add_scalars("Losses and penalties training", {"Loss": epoch_loss,
                                                                          "Fine Loss": epoch_loss_fine,

@@ -5,6 +5,9 @@ from utils import sparser2coarser
 
 def accuracy_coarser_classes(predicted, actual, coarser_labels, n_superclass, device):
     batch = predicted.size(0)
+
+    predicted = torch.softmax(predicted, dim=1) + 1e-6
+
     predicted_coarser = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
 
     for k in range(n_superclass):
