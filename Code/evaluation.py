@@ -3,21 +3,20 @@ import torch
 from utils import sparser2coarser
 
 
-def accuracy_superclasses(predicted, actual, coarse_labels, n_superclass, device):
+def accuracy_coarser_classes(predicted, actual, coarser_labels, n_superclass, device):
     batch = predicted.size(0)
-    predicted_coarse = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
+    predicted_coarser = torch.zeros(batch, n_superclass, dtype=torch.float32, device="cuda:0")
 
     for k in range(n_superclass):
         # obtain the indexes of the superclass number k
-        indexes = list(np.where(coarse_labels == k))[0]
-        predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+        indexes = list(np.where(coarser_labels == k))[0]
+        predicted_coarser[:, k] += torch.sum(predicted[:, indexes], dim=1)
 
-    coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
-    actual_coarse = sparser2coarser(actual, coarse_labels)
+    coarser_labels = torch.tensor(coarser_labels).type(torch.int64).to(device)
+    actual_coarser = sparser2coarser(actual, coarser_labels)
 
-    # actual_coarse = sparse2coarse(actual.cpu().detach().numpy(), coarse_labels)
-    predicted_coarse = torch.argmax(predicted_coarse, dim=1)
-    running_corrects = torch.sum(predicted_coarse == actual_coarse)
+    predicted_coarser = torch.argmax(predicted_coarser, dim=1)
+    running_corrects = torch.sum(predicted_coarser == actual_coarser)
 
     return running_corrects
 

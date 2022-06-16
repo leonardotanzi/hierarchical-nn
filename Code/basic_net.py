@@ -7,7 +7,7 @@ import torch.nn as nn
 from losses import hierarchical_cc
 from dataset import train_val_dataset, ImageFolderNotAlphabetic, ImbalanceCIFAR100
 from utils import get_superclasses, get_classes, decimal_to_string, get_medium_labels
-from evaluation import accuracy_superclasses
+from evaluation import accuracy_coarser_classes
 
 import numpy as np
 import os
@@ -177,7 +177,7 @@ if __name__ == "__main__":
                 # Statistics
                 running_loss += loss.item()
                 running_corrects += torch.sum(preds == labels.data).item()
-                running_corrects_super += accuracy_superclasses(outputs, labels, np.asarray(medium_labels),
+                running_corrects_super += accuracy_coarser_classes(outputs, labels, np.asarray(medium_labels),
                                                                 len(superclasses), device)
                 running_loss_fine += loss_dict["loss_fine"]
                 running_loss_medium += loss_dict["loss_medium"]

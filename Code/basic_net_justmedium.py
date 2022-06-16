@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 from utils import get_superclasses, get_classes, get_medium_labels, sparser2coarser
-from evaluation import accuracy_superclasses
+from evaluation import accuracy_coarser_classes
 from losses import hierarchical_cc
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 import numpy as np

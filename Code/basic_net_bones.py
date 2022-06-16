@@ -6,7 +6,7 @@ import torch.nn as nn
 from dataset import train_val_dataset, ClassSpecificImageFolder
 from losses import hierarchical_cc_bones
 from utils import decimal_to_string
-from evaluation import accuracy_superclasses
+from evaluation import accuracy_coarser_classes
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter

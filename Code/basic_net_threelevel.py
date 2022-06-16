@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 
-from evaluation import accuracy_superclasses
+from evaluation import accuracy_coarser_classes
 from losses import hierarchical_cc_3levels
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import get_superclasses, get_classes, get_hyperclasses, decimal_to_string,  get_medium_labels, get_coarse_labels
@@ -29,8 +29,10 @@ if __name__ == "__main__":
     validation_split = 0.1
 
     hierarchical_loss = True
+    medium_loss = False
+    coarse_loss = False
     regularization = False
-    name = "resnetthreelevels1loss"
+    name = "resnet_fineloss"
 
     run_scheduler = False
     sp_regularization = False
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     coarse_labels = get_coarse_labels(superclasses_names=coarse_classes)
 
     # Path
-    model_path = "..//..//Models//New_020622//"
+    model_path = "..//..//Models//New_160622//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     print(f"Model name: {model_name}")
 
     # Log
-    writer = SummaryWriter(os.path.join("..//Logs//New_020622//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//Logs//New_160622//", model_name.split("//")[-1].split(".")[0]))
 
     # Dataset
     train_dir = "..//..//cifar//train//"
@@ -109,7 +111,8 @@ if __name__ == "__main__":
     n_total_steps_val = len(val_loader)
     platoon = 0
     best_acc = 0.0
-    associated_sup_acc = 0.0
+    associated_medium_acc = 0.0
+    associated_coarse_acc = 0.0
 
     for epoch in range(n_epochs):
         start = timeit.default_timer()
@@ -128,6 +131,8 @@ if __name__ == "__main__":
 
             running_loss = 0.0
             running_corrects = 0
+            running_corrects_medium = 0
+            running_corrects_coarse = 0
             running_loss_fine = 0.0
             running_loss_medium = 0.0
             running_loss_coarse = 0.0
@@ -143,7 +148,8 @@ if __name__ == "__main__":
 
                     _, preds = torch.max(outputs, 1)
                     loss, loss_dict = hierarchical_cc_3levels(outputs, labels, np.asarray(medium_labels),
-                                                np.asarray(coarse_labels), n_medium_classes, n_coarse_classes, device)
+                                                np.asarray(coarse_labels), n_medium_classes, n_coarse_classes, device,
+                                                medium_loss, coarse_loss)
 
                     # Backward + optimize
                     if phase == "train":
@@ -154,6 +160,10 @@ if __name__ == "__main__":
                 # Statistics
                 running_loss += loss.item()
                 running_corrects += torch.sum(preds == labels.data).item()
+                running_corrects_medium += accuracy_coarser_classes(outputs, labels, np.asarray(medium_labels),
+                                                                   len(medium_classes), device)
+                running_corrects_coarse += accuracy_coarser_classes(outputs, labels, np.asarray(coarse_labels),
+                                                                   len(coarse_classes), device)
 
                 running_loss_fine += loss_dict["loss_fine"]
                 running_loss_medium += loss_dict["loss_medium"]
@@ -161,17 +171,21 @@ if __name__ == "__main__":
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects / dataset_sizes[phase]
+            epoch_acc_medium = running_corrects_medium / dataset_sizes[phase]
+            epoch_acc_coarse = running_corrects_coarse / dataset_sizes[phase]
             epoch_loss_fine = running_loss_fine / dataset_sizes[phase]
             epoch_loss_medium = running_loss_medium / dataset_sizes[phase]
             epoch_loss_coarse = running_loss_coarse / dataset_sizes[phase]
 
-            print(f"Step {i + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f},"
-                  f" Acc: {epoch_acc:.4f}")
+            print(f"Step {i + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f}, Acc: {epoch_acc:.4f}, "
+                  f"Medium Acc: {epoch_acc_medium:.4f}, Coarse Acc: {epoch_loss_coarse:.4f}")
 
             if (i + 1) % n_total_steps == 0:
                 if phase == "val":
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
+                        associated_medium_acc = epoch_acc_medium
+                        associated_coarse_acc = epoch_acc_coarse
                         platoon = 0
                         best_model_name = model_name[:-4] + "_best.pth"
                         torch.save(model.state_dict(), best_model_name)
@@ -184,6 +198,9 @@ if __name__ == "__main__":
                     print("End of validation epoch.")
                     writer.add_scalar("Validation loss", epoch_loss, epoch)
                     writer.add_scalar("Validation accuracy", epoch_acc, epoch)
+                    writer.add_scalar("Validation medium accuracy", epoch_acc_medium, epoch)
+                    writer.add_scalar("Validation coarse accuracy", epoch_acc_coarse, epoch)
+
                     writer.add_scalars("Training vs. validation loss",
                                        {"Training": epoch_loss_compare, "Validation": epoch_loss}, epoch)
                     writer.add_scalars("Training vs. validation accuracy",
@@ -201,6 +218,9 @@ if __name__ == "__main__":
                     print("End of training epoch.")
                     writer.add_scalar("Training loss", epoch_loss, epoch)
                     writer.add_scalar("Training accuracy", epoch_acc, epoch)
+                    writer.add_scalar("Training medium accuracy", epoch_acc_medium, epoch)
+                    writer.add_scalar("Training coarse accuracy", epoch_acc_medium, epoch)
+
                     writer.add_scalars("Losses and penalties training", {"Loss": epoch_loss,
                                                                          "Fine Loss": epoch_loss_fine,
                                                                          "Medium Loss": epoch_loss_medium,

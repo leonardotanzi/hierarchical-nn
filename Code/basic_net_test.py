@@ -5,7 +5,7 @@ from torchvision import models
 import torch.nn as nn
 
 from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_superclasses
+from evaluation import accuracy_coarser_classes
 from utils import get_superclasses, get_classes, sparser2coarser, get_medium_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance

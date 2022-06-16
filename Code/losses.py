@@ -11,7 +11,8 @@ def cross_entropy(predicted, actual, reduction):
     return loss if reduction == "sum" else loss / float(predicted.shape[0])
 
 
-def hierarchical_cc_3levels(predicted, actual, medium_labels, coarse_labels, n_medium_class, n_coarse_class, device):
+def hierarchical_cc_3levels(predicted, actual, medium_labels, coarse_labels, n_medium_class, n_coarse_class, device,
+                            medium_loss, coarse_loss):
 
     batch = predicted.size(0)
 
@@ -20,42 +21,43 @@ def hierarchical_cc_3levels(predicted, actual, medium_labels, coarse_labels, n_m
     loss = cross_entropy(predicted, actual, reduction="sum")
     loss_dict = {"loss_fine": loss.item()}
 
-    # define an empty vector which contains 20 superclasses prediction for each samples
-    # predicted_medium = torch.zeros(batch, n_medium_class, dtype=torch.float32, device=device)
-    # for k in range(n_medium_class):
-    #     # obtain the indexes of the superclass number k
-    #     indexes = list(np.where(medium_labels == k))[0]
-    #     # for each index, sum all the probability related to that superclass
-    #     # for each line, at the position k, you sum all the classe related to superclass k, so for k=0
-    #     # the classes are 0 to 4
-    #     predicted_medium[:, k] += torch.sum(predicted[:, indexes], dim=1)
-    # medium_labels = torch.tensor(medium_labels).type(torch.int64).to(device)
-    # actual_medium = sparser2coarser(actual, medium_labels)
-    # loss_medium = cross_entropy(predicted_medium, actual_medium, reduction="sum")
-    # loss_dict["loss_medium"] = loss_medium.item()
-    #
-    # loss += loss_medium
-    #
-    # # define an empty vector which contains 20 superclasses prediction for each samples
-    # predicted_coarse = torch.zeros(batch, n_coarse_class, dtype=torch.float32, device=device)
-    #
-    # for k in range(n_coarse_class):
-    #     # obtain the indexes of the superclass number k
-    #     indexes = list(np.where(coarse_labels == k))[0]
-    #     # for each index, sum all the probability related to that superclass
-    #     # for each line, at the position k, you sum all the classe related to superclass k, so for k=0
-    #     # the classes are 0 to 4
-    #     predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
-    #
-    # coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
-    # actual_coarse = sparser2coarser(actual, coarse_labels)
-    # loss_coarse = cross_entropy(predicted_coarse, actual_coarse, reduction="sum")
-    # loss_dict["loss_coarse"] = loss_coarse.item()
+    if medium_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_medium = torch.zeros(batch, n_medium_class, dtype=torch.float32, device=device)
+        for k in range(n_medium_class):
+            # obtain the indexes of the superclass number k
+            indexes = list(np.where(medium_labels == k))[0]
+            # for each index, sum all the probability related to that superclass
+            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0
+            # the classes are 0 to 4
+            predicted_medium[:, k] += torch.sum(predicted[:, indexes], dim=1)
+        medium_labels = torch.tensor(medium_labels).type(torch.int64).to(device)
+        actual_medium = sparser2coarser(actual, medium_labels)
+        loss_medium = cross_entropy(predicted_medium, actual_medium, reduction="sum")
+        loss_dict["loss_medium"] = loss_medium.item()
+        loss += loss_medium
+    else:
+        loss_dict["loss_medium"] = 0.0
 
-    # loss += loss_coarse
+    if coarse_loss:
+        # define an empty vector which contains 20 superclasses prediction for each samples
+        predicted_coarse = torch.zeros(batch, n_coarse_class, dtype=torch.float32, device=device)
 
-    loss_dict["loss_medium"] = 0.0
-    loss_dict["loss_coarse"] = 0.0
+        for k in range(n_coarse_class):
+            # obtain the indexes of the superclass number k
+            indexes = list(np.where(coarse_labels == k))[0]
+            # for each index, sum all the probability related to that superclass
+            # for each line, at the position k, you sum all the classe related to superclass k, so for k=0
+            # the classes are 0 to 4
+            predicted_coarse[:, k] += torch.sum(predicted[:, indexes], dim=1)
+
+        coarse_labels = torch.tensor(coarse_labels).type(torch.int64).to(device)
+        actual_coarse = sparser2coarser(actual, coarse_labels)
+        loss_coarse = cross_entropy(predicted_coarse, actual_coarse, reduction="sum")
+        loss_dict["loss_coarse"] = loss_coarse.item()
+        loss += loss_coarse
+    else:
+        loss_dict["loss_coarse"] = 0.0
 
     return loss, loss_dict
 
