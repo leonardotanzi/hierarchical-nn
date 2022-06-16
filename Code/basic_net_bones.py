@@ -3,7 +3,10 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import train_val_dataset, hierarchical_cc_bones, ClassSpecificImageFolder, accuracy_superclasses, decimal_to_string
+from dataset import train_val_dataset, ClassSpecificImageFolder
+from losses import hierarchical_cc_bones
+from utils import decimal_to_string
+from evaluation import accuracy_superclasses
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter

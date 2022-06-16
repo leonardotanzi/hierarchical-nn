@@ -4,10 +4,10 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 
-from losses import hierarchical_cc
-from dataset import train_val_dataset, ImageFolderNotAlphabetic, ImbalanceCIFAR100
-from utils import get_superclasses, get_classes, decimal_to_string, get_medium_labels
 from evaluation import accuracy_superclasses
+from losses import hierarchical_cc_3levels
+from dataset import train_val_dataset, ImageFolderNotAlphabetic
+from utils import get_superclasses, get_classes, get_hyperclasses, decimal_to_string,  get_medium_labels, get_coarse_labels
 
 import numpy as np
 import os
@@ -24,29 +24,30 @@ if __name__ == "__main__":
 
     batch_size = 128
     n_epochs = 100
-    learning_rate = 0.001
+    learning_rate = 0.01
     scheduler_step_size = 40
     validation_split = 0.1
 
     hierarchical_loss = True
-    regularization = True
-    name = "resnetimbalanced"
+    regularization = False
+    name = "resnetthreelevels1loss"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
-    imbalance_dataset = False
     less_samples = False
     reduction_factor = 1 if less_samples is False else 16
 
     # Classes and superclasses
-    classes = get_classes()
-    # random.seed(0)
-    # random.shuffle(classes[0])
-    superclasses = get_superclasses()
-    n_classes = len(classes)
-    n_superclasses = len(superclasses)
-    medium_labels = get_medium_labels(superclasses_names=superclasses)
+    fine_classes = get_classes()
+    medium_classes = get_superclasses()
+    coarse_classes = get_hyperclasses()
+    n_fine_classes = len(fine_classes)
+    n_medium_classes = len(medium_classes)
+    n_coarse_classes = len(coarse_classes)
+
+    medium_labels = get_medium_labels(superclasses_names=medium_classes)
+    coarse_labels = get_coarse_labels(superclasses_names=coarse_classes)
 
     # Path
     model_path = "..//..//Models//New_020622//"
@@ -71,47 +72,27 @@ if __name__ == "__main__":
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-
-    if imbalance_dataset:
-        train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=classes)
-    else:
-        train_dataset = ImageFolderNotAlphabetic(train_dir, classes=classes, transform=transform)
+    train_dataset = ImageFolderNotAlphabetic(train_dir, classes=fine_classes, transform=transform)
+    # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=classes[0])
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
-    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4,
-                              pin_memory=True)
-    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,
-                            pin_memory=True)
+    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
+    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     # Check lr_ratio
     lr_ratio = 1 / len(train_loader)
     print(f"LR should be around {lr_ratio:.4f}")
 
-    # Plot
-    # dataiter = iter(train_loader)
-    # images, labels = dataiter.next()
-    # print(" ".join("%s" % classes[0][labels[j]] for j in range(10)))
-    # imshow(torchvision.utils.make_grid(images))
-
     # Model
     model = models.resnet18(pretrained=True)
     # Freeze layers
     for param in model.parameters():
         param.requires_grad = False
-    # SP Reg
-    if sp_regularization:
-        vec = []
-        for i, (name, W) in enumerate(model.named_parameters()):
-            if "weight" in name and "fc" not in name:
-                vec.append(W.view(-1))
-        w0 = torch.cat(vec).detach().to(device)
-    else:
-        w0 = None
 
     # Add last layer
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=n_classes)
+    model.fc = nn.Linear(num_ftrs, out_features=n_fine_classes)
     model.to(device)
 
     # Optimizer
@@ -147,11 +128,9 @@ if __name__ == "__main__":
 
             running_loss = 0.0
             running_corrects = 0
-            running_corrects_super = 0
             running_loss_fine = 0.0
             running_loss_medium = 0.0
-            running_medium_penalty = 0.0
-            running_fine_penalty = 0.0
+            running_loss_coarse = 0.0
 
             # Iterate over data
             for i, (inputs, labels) in enumerate(loader):
@@ -163,10 +142,8 @@ if __name__ == "__main__":
                     outputs = model(inputs)
 
                     _, preds = torch.max(outputs, 1)
-                    loss, loss_dict = hierarchical_cc(outputs, labels, np.asarray(medium_labels),
-                                                      int(n_classes / n_superclasses),
-                                                      n_superclasses, model, w0, device, hierarchical_loss,
-                                                      regularization, sp_regularization, weight_decay)
+                    loss, loss_dict = hierarchical_cc_3levels(outputs, labels, np.asarray(medium_labels),
+                                                np.asarray(coarse_labels), n_medium_classes, n_coarse_classes, device)
 
                     # Backward + optimize
                     if phase == "train":
@@ -177,29 +154,24 @@ if __name__ == "__main__":
                 # Statistics
                 running_loss += loss.item()
                 running_corrects += torch.sum(preds == labels.data).item()
-                running_corrects_super += accuracy_superclasses(outputs, labels, np.asarray(medium_labels),
-                                                                len(superclasses), device)
+
                 running_loss_fine += loss_dict["loss_fine"]
                 running_loss_medium += loss_dict["loss_medium"]
-                running_medium_penalty += loss_dict["medium_penalty"]
-                running_fine_penalty += loss_dict["fine_penalty"]
+                running_loss_coarse += loss_dict["loss_coarse"]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects / dataset_sizes[phase]
-            epoch_acc_super = running_corrects_super / dataset_sizes[phase]
             epoch_loss_fine = running_loss_fine / dataset_sizes[phase]
             epoch_loss_medium = running_loss_medium / dataset_sizes[phase]
-            epoch_medium_penalty = running_medium_penalty / dataset_sizes[phase]
-            epoch_fine_penalty = running_fine_penalty / dataset_sizes[phase]
+            epoch_loss_coarse = running_loss_coarse / dataset_sizes[phase]
 
             print(f"Step {i + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f},"
-                  f" Acc: {epoch_acc:.4f}, Acc Super: {epoch_acc_super:.4f}")
+                  f" Acc: {epoch_acc:.4f}")
 
             if (i + 1) % n_total_steps == 0:
                 if phase == "val":
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
-                        associated_sup_acc = epoch_acc_super
                         platoon = 0
                         best_model_name = model_name[:-4] + "_best.pth"
                         torch.save(model.state_dict(), best_model_name)
@@ -212,7 +184,6 @@ if __name__ == "__main__":
                     print("End of validation epoch.")
                     writer.add_scalar("Validation loss", epoch_loss, epoch)
                     writer.add_scalar("Validation accuracy", epoch_acc, epoch)
-                    writer.add_scalar("Validation super accuracy", epoch_acc_super, epoch)
                     writer.add_scalars("Training vs. validation loss",
                                        {"Training": epoch_loss_compare, "Validation": epoch_loss}, epoch)
                     writer.add_scalars("Training vs. validation accuracy",
@@ -220,8 +191,8 @@ if __name__ == "__main__":
                     writer.add_scalars("Losses and penalties validation", {"Loss": epoch_loss,
                                                                            "Fine Loss": epoch_loss_fine,
                                                                            "Medium Loss": epoch_loss_medium,
-                                                                           "Fine Penalty": epoch_fine_penalty,
-                                                                           "Medium Penalty": epoch_medium_penalty},
+                                                                           "Coarse Loss": epoch_loss_coarse
+                                                                           },
                                        epoch)
 
                 elif phase == "train":
@@ -230,12 +201,10 @@ if __name__ == "__main__":
                     print("End of training epoch.")
                     writer.add_scalar("Training loss", epoch_loss, epoch)
                     writer.add_scalar("Training accuracy", epoch_acc, epoch)
-                    writer.add_scalar("Training super accuracy", epoch_acc_super, epoch)
                     writer.add_scalars("Losses and penalties training", {"Loss": epoch_loss,
                                                                          "Fine Loss": epoch_loss_fine,
                                                                          "Medium Loss": epoch_loss_medium,
-                                                                         "Fine Penalty": epoch_fine_penalty,
-                                                                         "Medium Penalty": epoch_medium_penalty},
+                                                                         "Coarse Loss": epoch_loss_coarse},
                                        epoch)
                     epoch_loss_compare = epoch_loss
                     epoch_acc_compare = epoch_acc

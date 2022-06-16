@@ -3,9 +3,13 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import get_superclasses, to_latex_heatmap, get_classes, accuracy_superclasses, sparse2coarse, save_list
-from dataset import exclude_classes, ClassSpecificImageFolderNotAlphabetic
-from visualization import plot_graph_top3superclasses, plot_graph
+
+from inout import to_latex_heatmap, save_list
+from evaluation import accuracy_superclasses
+from utils import get_superclasses, get_classes, sparser2coarser, get_medium_labels
+from dataset import exclude_classes, ImageFolderNotAlphabetic
+from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
+
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
@@ -31,14 +35,12 @@ if __name__ == "__main__":
     classes = get_classes()
     # random.seed(0)
     # random.shuffle(classes[0])
-    n_classes = len(classes[0])
+    n_classes = len(classes)
     n_superclasses = len(superclasses)
-    excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    classes.append(excluded)
+    medium_labels = get_medium_labels(superclasses)
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes, transform=transform)
-    classes = classes[0]
+    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=classes, transform=transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_sizes = len(test_loader)
 
@@ -67,19 +69,24 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    _, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    y_pred = sparse2coarse(y_pred, np.asarray(coarse_labels))
+    y_pred = sparser2coarser(y_pred, np.asarray(medium_labels))
 
-    # save_list("HLoss.pkl", y_pred)
+    ###############################################################################################################
+
+    # 1) Plot Graphs
+    # save_list("pkl//HLoss.pkl", y_pred)
     # plot_graph(y_pred, y_true, classes)
     # plot_graph_top3superclasses(y_pred, y_true, classes, superclasses)
 
-    # Confusion Matrixes
+    ###############################################################################################################
+
+    # 2) Confusion Matrixes
+
+    # 2.1) CLASSES
     print(classification_report(y_true, y_pred))
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
 
-    # CLASSES
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(classes), index=[i for i in classes],
                          columns=[i for i in classes])
 
@@ -92,16 +99,16 @@ if __name__ == "__main__":
         sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0)
         plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(model_name.split("//")[-1].split(".")[0]))
 
-    # SUPERCLASSES
-    _, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    y_true_super = sparse2coarse(y_true, np.asarray(coarse_labels))
-    y_pred_super = sparse2coarse(y_pred, np.asarray(coarse_labels))
+
+    # 2.2) SUPERCLASSES
+    _, medium_labels = exclude_classes(superclasses_names=superclasses)
+    y_true_super = sparser2coarser(y_true, np.asarray(medium_labels))
+    y_pred_super = sparser2coarser(y_pred, np.asarray(medium_labels))
     print(classification_report(y_true_super, y_pred_super))
     # Build confusion matrix
     cf_matrix = confusion_matrix(y_true_super, y_pred_super)
     print(cf_matrix)
 
-    # CLASSES
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(superclasses), index=[i for i in superclasses],
                          columns=[i for i in superclasses])
 

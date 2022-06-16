@@ -3,9 +3,11 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from utils import get_superclasses, to_latex_heatmap, get_classes, accuracy_superclasses, sparse2coarse, save_list
-from dataset import exclude_classes, ClassSpecificImageFolderNotAlphabetic
-from visualization import plot_graph_top3superclasses, plot_graph, plot_box
+from inout import to_latex_heatmap, save_list
+from evaluation import accuracy_superclasses
+from utils import get_superclasses, get_classes, sparser2coarser, get_medium_labels
+from dataset import exclude_classes, ImageFolderNotAlphabetic
+from visualization import plot_graph_top3superclasses, plot_graph, plot_box, plot_variance
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
@@ -27,14 +29,12 @@ if __name__ == "__main__":
 
     superclasses = get_superclasses()
     classes = get_classes()
-    n_classes = len(classes[0])
+    n_classes = len(classes)
     n_superclasses = len(superclasses)
-    excluded, coarse_labels = exclude_classes(superclasses_names=superclasses)
-    classes.append(excluded)
+    medium_labels = get_medium_labels(superclasses_names=superclasses)
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    test_dataset = ClassSpecificImageFolderNotAlphabetic(test_dir, all_dropped_classes=classes, transform=transform)
-    classes = classes[0]
+    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=classes, transform=transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_sizes = len(test_loader)
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
         labels_fine.extend(labels.numpy())
 
-        labels = torch.from_numpy(sparse2coarse(labels.numpy(), np.asarray(coarse_labels)))
+        labels = torch.from_numpy(sparser2coarser(labels.numpy(), np.asarray(medium_labels)))
         labels = labels.type(torch.int64)
         labels = labels.to(device)
 
@@ -69,18 +69,20 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    # save_list("JustCoarse.pkl", y_pred)
-
+    # 1) Plot Graph
+    # save_list("pkl//JustCoarse.pkl", y_pred)
     # plot_graph(y_pred, labels_fine, classes)
     # plot_graph_top3superclasses(y_pred, labels_fine, classes, superclasses)
-    plot_box(labels_fine, classes, superclasses)
+    # plot_box(labels_fine, classes, superclasses)
+    # plot_variance(labels_fine, classes, superclasses)
 
-    # Classification Matrixes
+    # 2) Classification Matrixes
+
+    # 2.1) SUPERCLASSESCLASSES
     print(classification_report(y_true, y_pred))
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)
 
-    # CLASSES
     df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(superclasses), index=[i for i in superclasses],
                          columns=[i for i in superclasses])
 
