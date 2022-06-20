@@ -1,7 +1,7 @@
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from utils import load_list
+from inout import load_list
 
 
 # plot the top-3 superclasse a class was assigned

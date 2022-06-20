@@ -5,9 +5,10 @@ from torchvision import models
 import torch.nn as nn
 
 from evaluation import accuracy_coarser_classes
-from losses import hierarchical_cc_3levels
+from losses import hierarchical_cc_3levels, hierarchical_cc_tree
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import get_superclasses, get_classes, get_hyperclasses, decimal_to_string,  get_medium_labels, get_coarse_labels
+from tree import get_tree_CIFAR
 
 import numpy as np
 import os
@@ -19,6 +20,12 @@ import random
 
 if __name__ == "__main__":
 
+    # a = torch.tensor(np.zeros((128, 100)))
+    # b = torch.tensor(np.zeros((100, 8)))
+    #
+    # c = torch.matmul(a[:, ])
+    #
+
     # H- Parameters
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -29,10 +36,10 @@ if __name__ == "__main__":
     validation_split = 0.1
 
     hierarchical_loss = True
-    medium_loss = False
+    medium_loss = True
     coarse_loss = True
     regularization = False
-    name = "resnet_FC"
+    name = "resnet_"
 
     run_scheduler = False
     sp_regularization = False
@@ -73,6 +80,9 @@ if __name__ == "__main__":
     # Dataset
     train_dir = "..//..//cifar//train//"
     test_dir = "..//..//cifar//test//"
+
+    tree = get_tree_CIFAR()
+
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=fine_classes, transform=transform)
     # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=classes[0])
@@ -147,9 +157,11 @@ if __name__ == "__main__":
                     outputs = model(inputs)
 
                     _, preds = torch.max(outputs, 1)
-                    loss, loss_dict = hierarchical_cc_3levels(outputs, labels, np.asarray(medium_labels),
-                                                np.asarray(coarse_labels), n_medium_classes, n_coarse_classes, device,
-                                                medium_loss, coarse_loss)
+
+                    loss_n, loss_dict_n = hierarchical_cc_tree(outputs, labels, np.asarray(medium_labels),
+                                                           np.asarray(coarse_labels), tree, n_medium_classes,
+                                                           n_coarse_classes, model, 0.0, device, hierarchical_loss,
+                                                           regularization, sp_regularization, weight_decay)
 
                     # Backward + optimize
                     if phase == "train":

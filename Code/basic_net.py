@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnetimbalanced"
+    name = "resnet_weight10fine"
 
     run_scheduler = False
     sp_regularization = False

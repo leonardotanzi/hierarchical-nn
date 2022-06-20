@@ -11,7 +11,6 @@ def decimal_to_string(dec):
 
 
 def get_medium_labels(superclasses_names):
-
     medium_labels = []
 
     for i in range(len(superclasses_names)):
@@ -22,10 +21,9 @@ def get_medium_labels(superclasses_names):
 
 
 def get_coarse_labels(superclasses_names):
-
     coarse_labels = []
     occurencies = [2, 5, 2, 3, 3, 2, 2, 1]
-    occurencies = [i*5 for i in occurencies]
+    occurencies = [i * 5 for i in occurencies]
 
     for i in range(len(superclasses_names)):
         tmp = [i] * occurencies[i]
@@ -112,7 +110,44 @@ def get_superclasses():
 
 
 def get_hyperclasses():
-    return ['sea animal', 'land animal', 'insect and invertebretes', 'flora', 'objects', 'outdoor scene', 'vehicles', 'people']
+    return ['sea animal', 'land animal', 'insect and invertebrates', 'flora', 'objects', 'outdoor scene', 'vehicles',
+            'people']
+
+
+def build_cifar_matrix():
+    # build one dict for each layer
+    first_dict = {'sea animal': ['aquatic mammals', 'fish'],
+                  'land animal': ['large carnivores', 'large omnivores and herbivores', 'medium-sized mammals', 'reptiles', 'small mammals'],
+                  'insect and invertebrates': ['insects', 'non-insect invertebrates'],
+                  'flora': ['flowers', 'fruit and vegetables', 'trees'],
+                  'objects': ['food containers', 'household electrical devices', 'household furniture'],
+                  'outdoor scenes': ['large man-made outdoor things', 'large natural outdoor scenes'],
+                  'vehicles': ['vehicles 1', 'vehicles 2'],
+                  'people': ['people']
+                  }
+
+    second_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+                   'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
+                   'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+                   'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
+                   'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+                   'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+                   'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe'],
+                   'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+                   'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+                   'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+                   'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea'],
+                   'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+                   'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+                   'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm'],
+                   'people': ['baby', 'boy', 'girl', 'man', 'woman'],
+                   'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+                   'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
+                   'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
+                   'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+                   'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}
+
+    all_dict = [first_dict, second_dict]
 
 
 if __name__ == "__main__":

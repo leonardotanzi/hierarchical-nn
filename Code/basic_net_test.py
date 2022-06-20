@@ -44,7 +44,7 @@ if __name__ == "__main__":
     coarse_labels = get_coarse_labels(coarse_classes)
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=classes, transform=transform)
+    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=fine_classes, transform=transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_sizes = len(test_loader)
 
