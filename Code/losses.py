@@ -76,6 +76,7 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels,
     if hierarchical_loss:
 
         matrixes = return_matrixes(tree, plot=False)
+        matrixes.reverse()
 
         # start from the root i compute all the other losses
         for i, labels in enumerate(all_labels):
@@ -85,6 +86,10 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels,
 
             loss_dict[f"loss_{i}"] = loss_coarser.item()
             loss += loss_coarser
+
+    else:
+        for i, labels in enumerate(all_labels):
+            loss_dict[f"loss_{i}"] = 0.0
 
     if regularization:
 

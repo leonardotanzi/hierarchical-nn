@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import sys
 import plotly.express as px
+from itertools import cycle, islice, dropwhile
 
 
 class MyNode(Node):  # Add Node feature
@@ -16,28 +17,108 @@ class MyNode(Node):  # Add Node feature
             self.children = children
 
 
-def get_tree_CIFAR():
+def get_all_labels(tree):
 
-    # superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-    #                    'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
-    #                    'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-    #                    'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
-    #                    'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-    #                    'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-    #                    'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe'],
-    #                    'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-    #                    'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-    #                    'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-    #                    'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea'],
-    #                    'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-    #                    'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-    #                    'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm'],
-    #                    'people': ['baby', 'boy', 'girl', 'man', 'woman'],
-    #                    'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-    #                    'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
-    #                    'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
-    #                    'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-    #                    'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}
+    all_labels_node = []
+    # to convert the fine labels to any other level, read each node, count the leaves and add one integer for each
+    # leaves in the node
+
+    all_leaves_node = [leaf for leaf in tree.leaves]
+    for i in range(tree.height - 1):
+        labels = []
+        for leaf in all_leaves_node:
+            if len(leaf.ancestors) != 1:
+                labels.append(leaf.ancestors[-1])
+            else:
+                labels.append(leaf)
+        all_leaves_node = labels
+        all_labels_node.append(labels)
+
+    all_labels = []
+    for label in all_labels_node:
+        i = 0
+        number = []
+        for counter, current_label in enumerate(label):
+            if counter == 0:
+                number.append(i)
+                prev_label = current_label
+            else:
+                if current_label.name != prev_label.name:
+                    i += 1
+                number.append(i)
+            prev_label = current_label
+        all_labels.append(number)
+    return all_labels
+
+
+def get_tree_from_file(file_tree):
+
+    file = open(file_tree, "r")
+    all_lines = file.readlines()
+    all_lines = [line[:-1] for line in all_lines]
+    root = Node("root")
+
+    R = root
+    L_before = 0
+
+    for line in all_lines[1:]:
+
+        # count the number of -
+        L_actual = line.count("-")
+
+        # if it's bigger, mean we are going into a next level
+        if L_actual > L_before:
+            # update the value of L
+            L_before = L_actual
+            # create a node with the parent
+            node = Node(f"{line[L_actual:]}", parent=R)
+            # update the parent
+            R = node
+        # if it's in the same level
+        elif L_actual == L_before:
+            # i need the parent, I am not coing deeper in the hierarchy
+            R = node.parent
+            node = Node(f"{line[L_actual:]}", parent=R)
+            # update the node
+            R = node
+        else:
+            # if we have to return back, firstly assign the parent as root
+            R = node.parent
+            # then we add one parent for each couple o "-"
+            for i in range(((L_before - L_actual) // 2)):
+                R = R.parent
+            node = Node(f"{line[L_actual:]}", parent=R)
+            # update the node
+            R = node
+            L_before = L_actual
+
+    print(RenderTree(root))
+    print("-" * 100)
+
+    return root
+
+
+def get_tree_FashionMNIST():
+
+    superclass_dict = {'Up': {'Short': ['T-shirt/top', 'Pullover', 'Shirt'], 'Long': ['Dress', 'Coat']},
+                       'Trouser': [], 'Bag': [], 'Shoes': ['Sandal', 'Sneaker', 'Ankle boot']}
+    root = Node("root")
+    for key, value in superclass_dict.items():
+        parent = Node(f"{key}", parent=root)
+        if type(value) is dict:
+            for key_next, value_next in value.items():
+                node = Node(f"{key_next}", parent=parent)
+                for classes in value_next:
+                    node2 = Node(f"{classes}", parent=node)
+        else:
+            for classes in value:
+                node = Node(f"{classes}", parent=parent)
+
+    print(RenderTree(root))
+    return root
+
+
+def get_tree_CIFAR():
 
     superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
                                     'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']},
@@ -91,10 +172,29 @@ def return_matrixes(tree, plot=False):
     matrixes = []
     # read each level and put all the classes name in separate lists
     all_leaves = [leaf.name for leaf in tree.leaves]
-    all_nodes = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
+
+    all_labels_node = []
+    # read the superclasses for each layer and store in a list of list
+    all_leaves_node = [leaf for leaf in tree.leaves]
+    for i in range(tree.height - 1):
+        labels = []
+        for leaf in all_leaves_node:
+            if len(leaf.ancestors) != 1:
+                to_append = leaf.ancestors[-1]
+            else:
+                to_append = leaf
+            if to_append not in labels:
+                labels.append(to_append)
+
+        all_leaves_node = labels
+        all_labels_node.append(labels)
+
+    # reverse the list and substitute each node with its actual name
+    all_labels_node.reverse()
+    all_labels_node = [[node.name for node in all_labels] for all_labels in all_labels_node]
 
     # build one matrix for each layer that is not the last (we dont a matrix for the last)
-    for node_layer in all_nodes[:-1]:
+    for node_layer in all_labels_node:
 
         # the size of the matrix is this because we have one entry for each of the superclass of the level we are
         # considering, compared with each one of the leaf class (all_nodes[-1])
@@ -111,8 +211,7 @@ def return_matrixes(tree, plot=False):
         matrixes.append(matrix)
 
         if plot:
-            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 4,
-                            height=2500//4)
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500, height=2500)
             fig.update_xaxes(side="top")
             fig.show()
 
