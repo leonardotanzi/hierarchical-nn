@@ -6,14 +6,10 @@ import torchvision
 import numpy as np
 import shutil
 import pickle
-import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
 import pandas
 import shutil
-import matplotlib
-
-matplotlib.use('Agg')
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
