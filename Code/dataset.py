@@ -11,7 +11,9 @@ import cv2
 from PIL import Image
 import pandas
 import shutil
+import matplotlib
 
+matplotlib.use('Agg')
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
@@ -249,6 +251,8 @@ def build_fairface():
     for index, row in df.iterrows():
         file = row["file"]
         age = row["age"]
+        if age == "more than 70":
+            age = "70-99"
         gender = row["gender"]
         name = "_".join([gender, age])
         if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves//{name}"):
@@ -266,5 +270,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    build_imagenet()
+    build_fairface()
     pass
