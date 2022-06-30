@@ -9,6 +9,8 @@ import pickle
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
+import pandas
+import shutil
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -173,22 +175,22 @@ def exclude_classes(superclasses_names):
 
 def build_mapping_imagenet():
 
-    with open("..//..//ImageNetVal//map_clsloc.txt", "r") as f:
+    with open("..//..//Dataset//map_clsloc.txt", "r") as f:
         all_mappings = f.readlines()
         dict_code_number = {}
         for mapping in all_mappings:
             code = mapping.split(" ")[0]
             number = mapping.split(" ")[1]
             dict_code_number[code] = number
-    with open("..//..//ImageNetVal//gt_valid.txt", "r") as f:
+    with open("..//..//Dataset//gt_valid.txt", "r") as f:
         all_lines = f.readlines()
         dict_img = {}
         for line in all_lines:
             mapping = line.split(",")[0].split("/")
             code = mapping[-1].split("_")[0]
             name = mapping[-2]
-            if not os.path.exists(f"..//Imagenet_leaves//{name}"):
-                os.makedirs(f"..//Imagenet_leaves//{name}")
+            if not os.path.exists(f"..//..//Imagenet_leaves//{name}"):
+                os.makedirs(f"..//..//Imagenet_leaves//{name}")
             dict_img[dict_code_number[code]] = name
 
     return dict_img
@@ -240,6 +242,22 @@ def build_imagenet():
             cv2.imwrite(out_name, img)
 
 
+def build_fairface():
+    df = pandas.read_csv("..//..//dataset//FairFace//fairface_label_train.csv")
+    print(df['age'].unique())
+
+    for index, row in df.iterrows():
+        file = row["file"]
+        age = row["age"]
+        gender = row["gender"]
+        name = "_".join([gender, age])
+        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves//{name}"):
+            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves//{name}")
+
+        out_name = "train_" + file.split("/")[1]
+        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves//{name}//{out_name}")
+
+
 if __name__ == "__main__":
     # transform = transforms.Compose(
     #     [transforms.ToTensor(),
@@ -248,4 +266,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
+    build_imagenet()
     pass
