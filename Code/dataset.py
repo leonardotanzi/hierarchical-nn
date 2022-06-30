@@ -197,7 +197,7 @@ def build_mapping_imagenet():
 
 
 def build_imagenet():
-    d = np.load("..//..//Dataset//nparray//Imagenet64_val_npz//val_data.npz")
+    d = np.load("..//..//Dataset//nparray//Imagenet64_val_npz//Imagenet64_val_npz//val_data.npz")
     x = d['data']
     y = d['labels']
     # y = [i - 1 for i in y]
