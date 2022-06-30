@@ -187,8 +187,8 @@ def build_mapping_imagenet():
             mapping = line.split(",")[0].split("/")
             code = mapping[-1].split("_")[0]
             name = mapping[-2]
-            if not os.path.exists(f"..//..//Imagenet_leaves//{name}"):
-                os.makedirs(f"..//..//Imagenet_leaves//{name}")
+            if not os.path.exists(f"..//..//Dataset//Imagenet_leaves//{name}"):
+                os.makedirs(f"..//..//Dataset//Imagenet_leaves//{name}")
             dict_img[dict_code_number[code]] = name
 
     return dict_img
