@@ -124,11 +124,14 @@ class ImageFolderNotAlphabetic(datasets.DatasetFolder):
         return classes, class_to_idx
 
 
-def train_val_dataset(dataset, val_split, reduction_factor=1):
+def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False):
     train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
     datasets = {}
 
     train_idx = [index for i, index in enumerate(train_idx) if i % reduction_factor == 0]
+    if reduce_val:
+        val_idx = [index for i, index in enumerate(val_idx) if i % reduction_factor == 0]
+
     datasets["train"] = Subset(dataset, train_idx)
     datasets["val"] = Subset(dataset, val_idx)
     return datasets
