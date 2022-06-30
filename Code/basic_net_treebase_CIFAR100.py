@@ -1,5 +1,5 @@
 import torch
-from torchvision.transforms import Compose, ToTensor, Normalize, Resize, Grayscale
+from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string
-from tree import get_tree_from_file, get_tree_CIFAR, get_tree_FashionMNIST, get_all_labels
+from tree import get_tree_CIFAR, get_all_labels
 
 import numpy as np
 import os
@@ -17,7 +17,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
 import timeit
 from anytree import LevelOrderGroupIter
-from anytree.search import find
 import random
 
 
@@ -27,13 +26,13 @@ if __name__ == "__main__":
 
     batch_size = 128
     n_epochs = 100
-    learning_rate = 0.01
+    learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
     hierarchical_loss = True
     regularization = False
-    name = "canc"
+    name = "resnet_updatedmatrix"
 
     run_scheduler = False
     sp_regularization = False
@@ -42,21 +41,16 @@ if __name__ == "__main__":
     reduction_factor = 1 if less_samples is False else 16
 
     # Classes and superclasses
-    file_name = "..//..//F_MNIST_data//fashionMNISTtree.txt"
-    tree = get_tree_from_file(file_name)
-    # find(tree, lambda node: node.name == "-shirt/top").name = "T-shirt/top"
-
-    # tree = get_tree_CIFAR()
-    # tree = get_tree_FashionMNIST()
-
+    tree = get_tree_CIFAR()
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
-
+    # to convert the fine labels to any other level, read each node, count the leaves and add one integer for each
+    # leaves in the node
     all_labels = get_all_labels(tree)
 
-    lens = [len(set(n)) for n in all_labels]
+    lens = [len(n) for n in all_nodes]
 
     # Path
     model_path = "..//..//Models//Mat_version_210622//"
@@ -77,13 +71,15 @@ if __name__ == "__main__":
     # Log
     writer = SummaryWriter(os.path.join("..//Logs//Mat_version_210622//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
+    # Dataset
+    train_dir = "..//..//cifar//train//"
+    test_dir = "..//..//cifar//test//"
 
-    # Load the data: train and test sets
-    train_dataset = datasets.FashionMNIST('..//..//F_MNIST_data', download=True, train=True, transform=transform)
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
+    # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=all_leaves)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
-
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
@@ -149,13 +145,11 @@ if __name__ == "__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                inputs = torch.cat([inputs, inputs, inputs], dim=1)
-
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
 
-                    #x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
+                    x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 
                     _, preds = torch.max(outputs, 1)
 

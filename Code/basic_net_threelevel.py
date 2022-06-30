@@ -20,12 +20,6 @@ import random
 
 if __name__ == "__main__":
 
-    # a = torch.tensor(np.zeros((128, 100)))
-    # b = torch.tensor(np.zeros((100, 8)))
-    #
-    # c = torch.matmul(a[:, ])
-    #
-
     # H- Parameters
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

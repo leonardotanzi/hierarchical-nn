@@ -3,14 +3,14 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from torchvision.datasets import FashionMNIST
+import torchvision
 
 from inout import to_latex_heatmap, save_list
 from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
-from tree import get_tree_FashionMNIST, get_all_labels
+from tree import get_tree_CIFAR, get_all_labels
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -26,17 +26,15 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
-    test_dataset = FashionMNIST('..//..//F_MNIST_data', download=True, train=False, transform=transform)
-
+    test_dir = "..//..//cifar//test//"
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet-fmnist_hloss_lr001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//resnet_updatedmatrix_hloss_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
 
-    tree = get_tree_FashionMNIST()
+    tree = get_tree_CIFAR()
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
@@ -46,6 +44,9 @@ if __name__ == "__main__":
 
     lens = [len(n) for n in all_nodes]
 
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+
+    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_size = len(test_loader)
 
@@ -67,8 +68,6 @@ if __name__ == "__main__":
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
         labels = labels.to(device)
-
-        inputs = torch.cat([inputs, inputs, inputs], dim=1)
 
         outputs = model(inputs)
 

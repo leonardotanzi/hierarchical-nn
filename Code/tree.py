@@ -27,7 +27,21 @@ def get_all_labels(tree):
     for i in range(tree.height - 1):
         labels = []
         for leaf in all_leaves_node:
-            if len(leaf.ancestors) != 1:
+            # check level ito check if all the leaf are equal for this level. to explain, this was made to solve the problem of
+            # root
+            # --shoes
+            # ----sandal
+            # ------sandal1
+            # ------sandal2
+            # ----sneaker
+            # if i do not do this, at first the label will be [sandal1, sandal2, sneaker] and then [sandal, shoes]
+            # because i will put in the list the ancestor of sneaker. in this way 'sneaker' wait sandal before going to shoes
+            check_level = True
+            for c in leaf.ancestors[-1].children:
+                if c not in all_leaves_node:
+                    check_level = False
+                    break
+            if len(leaf.ancestors) != 1 and check_level:
                 labels.append(leaf.ancestors[-1])
             else:
                 labels.append(leaf)
@@ -51,6 +65,16 @@ def get_all_labels(tree):
     return all_labels
 
 
+def count_symbol(line):
+    L = 0
+    for i in line:
+        if i == "-":
+            L += 1
+        else:
+            break
+    return L
+
+
 def get_tree_from_file(file_tree):
 
     file = open(file_tree, "r")
@@ -62,9 +86,8 @@ def get_tree_from_file(file_tree):
     L_before = 0
 
     for line in all_lines[1:]:
-
-        # count the number of -
-        L_actual = line.count("-")
+        # count the number of "-" at the beginning
+        L_actual = count_symbol(line)
 
         # if it's bigger, mean we are going into a next level
         if L_actual > L_before:
@@ -150,8 +173,8 @@ def get_tree_CIFAR():
     #                    'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
     #                              'fruit and vegetables': ['apple', 'mushroom']
     #                              }}
-
-    # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
+    #
+    # # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
     root = Node("root")
     for key, value in superclass_dict.items():
         parent = Node(f"{key}", parent=root)
@@ -179,7 +202,12 @@ def return_matrixes(tree, plot=False):
     for i in range(tree.height - 1):
         labels = []
         for leaf in all_leaves_node:
-            if len(leaf.ancestors) != 1:
+            check_level = True
+            for c in leaf.ancestors[-1].children:
+                if c not in all_leaves_node:
+                    check_level = False
+                    break
+            if len(leaf.ancestors) != 1 and check_level:
                 to_append = leaf.ancestors[-1]
             else:
                 to_append = leaf
@@ -211,7 +239,7 @@ def return_matrixes(tree, plot=False):
         matrixes.append(matrix)
 
         if plot:
-            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500, height=2500)
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 4, height=2500 // 4)
             fig.update_xaxes(side="top")
             fig.show()
 

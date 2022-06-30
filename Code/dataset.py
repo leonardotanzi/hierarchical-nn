@@ -4,6 +4,11 @@ from torch.utils.data import Subset
 import os
 import torchvision
 import numpy as np
+import shutil
+import pickle
+import matplotlib.pyplot as plt
+import cv2
+from PIL import Image
 
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
@@ -106,9 +111,9 @@ class ImageFolderNotAlphabetic(datasets.DatasetFolder):
                  loader=datasets.folder.default_loader, is_valid_file=None):
         self.classes = classes
         super(ImageFolderNotAlphabetic, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                                                    transform=transform,
-                                                    target_transform=target_transform,
-                                                    is_valid_file=is_valid_file)
+                                                       transform=transform,
+                                                       target_transform=target_transform,
+                                                       is_valid_file=is_valid_file)
         self.imgs = self.samples
 
     def find_classes(self, directory):
@@ -164,6 +169,75 @@ def exclude_classes(superclasses_names):
         coarse_labels.extend(tmp)
 
     return excluded, coarse_labels
+
+
+def build_mapping_imagenet():
+
+    with open("..//..//ImageNetVal//map_clsloc.txt", "r") as f:
+        all_mappings = f.readlines()
+        dict_code_number = {}
+        for mapping in all_mappings:
+            code = mapping.split(" ")[0]
+            number = mapping.split(" ")[1]
+            dict_code_number[code] = number
+    with open("..//..//ImageNetVal//gt_valid.txt", "r") as f:
+        all_lines = f.readlines()
+        dict_img = {}
+        for line in all_lines:
+            mapping = line.split(",")[0].split("/")
+            code = mapping[-1].split("_")[0]
+            name = mapping[-2]
+            if not os.path.exists(f"..//Imagenet_leaves//{name}"):
+                os.makedirs(f"..//Imagenet_leaves//{name}")
+            dict_img[dict_code_number[code]] = name
+
+    return dict_img
+
+
+def build_imagenet():
+    d = np.load("..//..//Imagenet64_val_npz//Imagenet64_val_npz//val_data.npz")
+    x = d['data']
+    y = d['labels']
+    # y = [i - 1 for i in y]
+    img_size = 64 * 64
+    x = np.dstack((x[:, :img_size], x[:, img_size:2 * img_size], x[:, 2 * img_size:]))
+    x = x.reshape((x.shape[0], 64, 64, 3))
+
+    dict_img = build_mapping_imagenet()
+
+    for i, (img, label) in enumerate(zip(x, y)):
+        out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+        cv2.imwrite(out_name, img)
+
+    for i in range(5):
+        d = np.load(f"..//..//Imagenet64_train_part1_npz//Imagenet64_train_part1_npz//train_data_batch_{i + 1}.npz")
+        x = d['data']
+        y = d['labels']
+        # y = [i - 1 for i in y]
+        img_size = 64 * 64
+        x = np.dstack((x[:, :img_size], x[:, img_size:2 * img_size], x[:, 2 * img_size:]))
+        x = x.reshape((x.shape[0], 64, 64, 3))
+
+        dict_img = build_mapping_imagenet()
+
+        for i, (img, label) in enumerate(zip(x, y)):
+            out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+            cv2.imwrite(out_name, img)
+
+    for i in range(5):
+        d = np.load(f"..//..//Imagenet64_train_part2_npz//Imagenet64_train_part2_npz//train_data_batch_{i + 1 + 5}.npz")
+        x = d['data']
+        y = d['labels']
+        # y = [i - 1 for i in y]
+        img_size = 64 * 64
+        x = np.dstack((x[:, :img_size], x[:, img_size:2 * img_size], x[:, 2 * img_size:]))
+        x = x.reshape((x.shape[0], 64, 64, 3))
+
+        dict_img = build_mapping_imagenet()
+
+        for i, (img, label) in enumerate(zip(x, y)):
+            out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+            cv2.imwrite(out_name, img)
 
 
 if __name__ == "__main__":

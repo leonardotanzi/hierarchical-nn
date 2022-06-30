@@ -63,8 +63,8 @@ def hierarchical_cc_3levels(predicted, actual, medium_labels, coarse_labels, n_m
     return loss, loss_dict
 
 
-def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels,
-                         model, w0, device, hierarchical_loss, regularization, sp_regularization, weight_decay):
+def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, model, w0, device, hierarchical_loss,
+                              regularization, sp_regularization, weight_decay, matrixes):
 
     batch = predicted.size(0)
 
@@ -74,9 +74,6 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels,
     loss_dict = {"loss_fine": loss.item()}
 
     if hierarchical_loss:
-
-        matrixes = return_matrixes(tree, plot=False)
-        matrixes.reverse()
 
         # start from the root i compute all the other losses
         for i, labels in enumerate(all_labels):

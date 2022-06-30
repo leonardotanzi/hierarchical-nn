@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string
-from tree import get_tree_from_file, get_tree_CIFAR, get_tree_FashionMNIST, get_all_labels
+from tree import get_tree_from_file, get_all_labels, return_matrixes
 
 import numpy as np
 import os
@@ -18,6 +18,7 @@ from torch.optim import lr_scheduler
 import timeit
 from anytree import LevelOrderGroupIter
 from anytree.search import find
+from anytree.exporter import DotExporter
 import random
 
 
@@ -27,13 +28,13 @@ if __name__ == "__main__":
 
     batch_size = 128
     n_epochs = 100
-    learning_rate = 0.01
+    learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
+    hierarchical_loss = False
     regularization = False
-    name = "canc"
+    name = "resnet-imagenet"
 
     run_scheduler = False
     sp_regularization = False
@@ -41,13 +42,7 @@ if __name__ == "__main__":
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
-    # Classes and superclasses
-    file_name = "..//..//F_MNIST_data//fashionMNISTtree.txt"
-    tree = get_tree_from_file(file_name)
-    # find(tree, lambda node: node.name == "-shirt/top").name = "T-shirt/top"
-
-    # tree = get_tree_CIFAR()
-    # tree = get_tree_FashionMNIST()
+    tree = get_tree_from_file("..//..//ImageNet64//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -55,6 +50,9 @@ if __name__ == "__main__":
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
     all_labels = get_all_labels(tree)
+
+    matrixes = return_matrixes(tree, plot=False)
+    matrixes.reverse()
 
     lens = [len(set(n)) for n in all_labels]
 
@@ -77,10 +75,12 @@ if __name__ == "__main__":
     # Log
     writer = SummaryWriter(os.path.join("..//Logs//Mat_version_210622//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+
+    train_dir = "..//..//ImageNet64//Imagenet_leaves"
 
     # Load the data: train and test sets
-    train_dataset = datasets.FashionMNIST('..//..//F_MNIST_data', download=True, train=True, transform=transform)
+    train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
 
@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                inputs = torch.cat([inputs, inputs, inputs], dim=1)
+                print(f"Step {j} / {len(loader)}")
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
@@ -160,7 +160,7 @@ if __name__ == "__main__":
                     _, preds = torch.max(outputs, 1)
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, model, 0.0, device,
-                                                    hierarchical_loss, regularization, sp_regularization, weight_decay, plot=False)
+                                                    hierarchical_loss, regularization, sp_regularization, weight_decay, matrixes)
 
                     # Backward + optimize
                     if phase == "train":
