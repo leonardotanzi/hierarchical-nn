@@ -42,7 +42,7 @@ if __name__ == "__main__":
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
-    tree = get_tree_from_file("..//..//ImageNet64//tree.txt")
+    tree = get_tree_from_file("..//..//Dataset//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//ImageNet64//Imagenet_leaves"
+    train_dir = "..//..//Dataset//Imagenet_leaves"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
