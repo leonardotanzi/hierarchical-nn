@@ -195,7 +195,7 @@ def build_mapping_imagenet():
 
 
 def build_imagenet():
-    d = np.load("..//..//Imagenet64_val_npz//Imagenet64_val_npz//val_data.npz")
+    d = np.load("..//..//Dataset//nparray//Imagenet64_val_npz//val_data.npz")
     x = d['data']
     y = d['labels']
     # y = [i - 1 for i in y]
@@ -206,11 +206,11 @@ def build_imagenet():
     dict_img = build_mapping_imagenet()
 
     for i, (img, label) in enumerate(zip(x, y)):
-        out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+        out_name = f"..//..//Dataset//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
         cv2.imwrite(out_name, img)
 
     for i in range(5):
-        d = np.load(f"..//..//Imagenet64_train_part1_npz//Imagenet64_train_part1_npz//train_data_batch_{i + 1}.npz")
+        d = np.load(f"..//..//Dataset//nparray//Imagenet64_train_part1_npz//Imagenet64_train_part1_npz//train_data_batch_{i + 1}.npz")
         x = d['data']
         y = d['labels']
         # y = [i - 1 for i in y]
@@ -221,11 +221,11 @@ def build_imagenet():
         dict_img = build_mapping_imagenet()
 
         for i, (img, label) in enumerate(zip(x, y)):
-            out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+            out_name = f"..//..//Dataset//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
             cv2.imwrite(out_name, img)
 
     for i in range(5):
-        d = np.load(f"..//..//Imagenet64_train_part2_npz//Imagenet64_train_part2_npz//train_data_batch_{i + 1 + 5}.npz")
+        d = np.load(f"..//..//Dataset//nparray//Imagenet64_train_part2_npz//Imagenet64_train_part2_npz//train_data_batch_{i + 1 + 5}.npz")
         x = d['data']
         y = d['labels']
         # y = [i - 1 for i in y]
@@ -236,7 +236,7 @@ def build_imagenet():
         dict_img = build_mapping_imagenet()
 
         for i, (img, label) in enumerate(zip(x, y)):
-            out_name = f"..//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
+            out_name = f"..//..//Dataset//Imagenet_leaves//{dict_img[str(label)]}//{dict_img[str(label)]}_{i}.png"
             cv2.imwrite(out_name, img)
 
 
