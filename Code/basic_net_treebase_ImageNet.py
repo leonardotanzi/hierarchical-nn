@@ -73,7 +73,7 @@ if __name__ == "__main__":
     print(f"Model name: {model_name}")
 
     # Log
-    writer = SummaryWriter(os.path.join("..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
