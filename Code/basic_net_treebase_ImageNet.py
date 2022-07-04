@@ -164,8 +164,9 @@ if __name__ == "__main__":
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, model, 0.0, device,
-                                                    hierarchical_loss, regularization, sp_regularization, weight_decay, matrixes)
+                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
+                                                                model, 0.0, device, hierarchical_loss, regularization,
+                                                                sp_regularization, weight_decay, matrixes)
 
                     # Backward + optimize
                     if phase == "train":
