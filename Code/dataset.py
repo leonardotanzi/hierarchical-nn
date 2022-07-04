@@ -87,9 +87,10 @@ class ImbalanceCIFAR100(ImbalanceCIFAR10):
 
 
 class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
-    def __init__(self, root, all_dropped_classes=[], transform=None, target_transform=None,
+    def __init__(self, root, all_classes, dropped_classes=[], transform=None, target_transform=None,
                  loader=datasets.folder.default_loader, is_valid_file=None):
-        self.all_dropped_classes = all_dropped_classes
+        self.dropped_classes = dropped_classes
+        self.all_classes = all_classes
         super(ClassSpecificImageFolderNotAlphabetic, self).__init__(root, loader,
                                                                     IMG_EXTENSIONS if is_valid_file is None else None,
                                                                     transform=transform,
@@ -98,8 +99,8 @@ class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
         self.imgs = self.samples
 
     def find_classes(self, directory):
-        classes = self.all_dropped_classes[0]
-        classes = [c for c in classes if c not in self.all_dropped_classes[1]]
+        classes = self.all_classes
+        classes = [c for c in classes if c not in self.dropped_classes]
         if not classes:
             raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}

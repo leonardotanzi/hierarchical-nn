@@ -7,7 +7,7 @@ from torchvision import datasets
 
 from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
-from dataset import train_val_dataset, ImageFolderNotAlphabetic
+from dataset import train_val_dataset, ImageFolderNotAlphabetic, ClassSpecificImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
 from tree import get_tree_from_file, get_all_labels, return_matrixes
 
@@ -28,6 +28,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
+    image_size = 224
     batch_size = 128
     n_epochs = 100
     learning_rate = 0.001
@@ -36,15 +37,15 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-fairface-canccc"
+    name = "resnet-femur"
 
     run_scheduler = False
     sp_regularization = False
-    weight_decay = 10
-    less_samples = True
+    weight_decay = 0.1
+    less_samples = False
     reduction_factor = 1 if less_samples is False else 16
 
-    tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFace.txt")
+    tree = get_tree_from_file("..//..//dataset//Femur//treeFemur.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     lens = [len(set(n)) for n in all_labels]
 
     # Path
-    model_path = "..//..//Models//Mat_version_210622//"
+    model_path = "..//..//Models//Femur//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
@@ -75,22 +76,20 @@ if __name__ == "__main__":
     print(f"Model name: {model_name}")
 
     # Log
-    writer = SummaryWriter(os.path.join("..//Logs//Mat_version_210622//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join("..//Logs//Femur//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+                         Resize(size=(image_size, image_size))])
 
-    train_dir = "..//..//Dataset//FairFace//FairFace_leaves"
+    train_dir = 'D:\\Drive\\PelvisDicom\\FinalDataset\\Dataset\\Train\\'
 
     # Load the data: train and test sets
-    train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
+    images_dataset = ClassSpecificImageFolderNotAlphabetic(train_dir, all_leaves, dropped_classes=["A", "B", "Broken"], transform=transform)
 
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
-
-    # with open("pkl//fairfaces_dataset.pkl", "wb") as f:
-    #     pickle.dump(dataset, f)
+    dataset = train_val_dataset(images_dataset, validation_split, reduction_factor, reduce_val=False)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
-    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)
+    val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
     # Check lr_ratio
@@ -154,8 +153,6 @@ if __name__ == "__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                # print(f"Step {j} / {len(loader)}")
-
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
@@ -164,9 +161,8 @@ if __name__ == "__main__":
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
-                                                                model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes)
+                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves, model, 0.0, device,
+                                                    hierarchical_loss, regularization, sp_regularization, weight_decay, matrixes)
 
                     # Backward + optimize
                     if phase == "train":
