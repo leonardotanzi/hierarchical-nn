@@ -8,7 +8,7 @@ from torchvision import datasets
 from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
-from utils import decimal_to_string
+from utils import decimal_to_string, seed_everything
 from tree import get_tree_from_file, get_all_labels, return_matrixes
 
 import numpy as np
@@ -20,11 +20,13 @@ from anytree import LevelOrderGroupIter
 from anytree.search import find
 from anytree.exporter import DotExporter
 import random
+import pickle
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    seed_everything(0)
 
     batch_size = 128
     n_epochs = 100
@@ -32,7 +34,7 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
+    hierarchical_loss = True
     regularization = False
     name = "resnet-fairface"
 
@@ -42,7 +44,7 @@ if __name__ == "__main__":
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
-    tree = get_tree_from_file("..//..//Dataset//tree.txt")
+    tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFace.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -77,12 +79,15 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//Dataset//Imagenet_leaves"
+    train_dir = "..//..//Dataset//FairFace//FairFace_leaves"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
+
+    with open("pkl//fairfaces_dataset.pkl", "wb") as f:
+        pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)
@@ -149,7 +154,7 @@ if __name__ == "__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                print(f"Step {j} / {len(loader)}")
+                # print(f"Step {j} / {len(loader)}")
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):

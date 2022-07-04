@@ -32,7 +32,7 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
+    hierarchical_loss = True
     regularization = False
     name = "resnet-imagenet"
 
