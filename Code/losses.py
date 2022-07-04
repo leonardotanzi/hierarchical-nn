@@ -2,8 +2,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from utils import sparser2coarser, class_to_index
-from anytree import Node, RenderTree, LevelOrderGroupIter
-from tree import return_matrixes
+from anytree import Node, RenderTree, LevelOrderGroupIter, PreOrderIter
+from tree import return_matrixes, node_to_weights
 
 
 def cross_entropy(predicted, actual, reduction):
@@ -63,7 +63,7 @@ def hierarchical_cc_3levels(predicted, actual, medium_labels, coarse_labels, n_m
     return loss, loss_dict
 
 
-def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, model, w0, device, hierarchical_loss,
+def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_leaves, model, w0, device, hierarchical_loss,
                               regularization, sp_regularization, weight_decay, matrixes):
 
     batch = predicted.size(0)
@@ -89,54 +89,66 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, model, 
             loss_dict[f"loss_{i}"] = 0.0
 
     if regularization:
-
-        penalty = 0
-        for i, node in enumerate(LevelOrderGroupIter(tree)):
-            # start computing not for root but for first layer
-            if i > 0:
-                # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
-                for level_class in node:
-                    # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
-                    n_ancestors = 0 if i == 1 else 1
-                    # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
-                    descendants = level_class.leaves
-                    # PRIMO TERMINE
-                    # se sono allultimo livello (quello delle classi, dove la heigth è zero,
-                    # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
-                    # come primo termine
-                    if level_class.height == 0:
-                        position = class_to_index(level_class.name)
-                        beta_vec_node = model.fc.weight.data[position][None, :]
-                    # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
-                    else:
-                        for j, classes_name in enumerate(descendants):
-                            # recupero l'indice associato al nome della classe
-                            position = class_to_index(classes_name.name)
-                            # prendo il vettore tra i pesi relativo a quell'indice
-                            beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
-                    # SECONDO TERMINE
-                    # I have to do the same thing but this time with the leaves of the parent
-                    if n_ancestors is not 0:
-                        for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
-                            position = class_to_index(superclasses_name.name)
-                            beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
-
-                        # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
-                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - torch.mean(beta_vec_parent, dim=0)))
-                    else:
-                        penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0)))
-
-        print(f"Penalty:{penalty}")
+        penalty = 0.0
+        for node in PreOrderIter(tree):
+            if node.name != "root":
+                leaves_node = node.leaves
+                leaves_parent = node.parent.leaves
+                beta_vec = model.fc.weight.data
+                weights_node = node_to_weights(all_leaves, leaves_node, beta_vec)
+                weights_parent = node_to_weights(all_leaves, leaves_parent, beta_vec)
+                penalty += ((len(node.leaves))**2)*((torch.norm(weights_node - weights_parent))**2)
 
         loss += weight_decay * penalty
-
-        loss_dict["fine_penalty"] = fine_penalty.item()
-        loss_dict["coarse_penalty"] = coarse_penalty.item()
-        loss += weight_decay * (fine_penalty + coarse_penalty)
-
-    else:
-        loss_dict["fine_penalty"] = 0.0
-        loss_dict["coarse_penalty"] = 0.0
+    # if regularization:
+    #
+    #     penalty = 0
+    #     for i, node in enumerate(LevelOrderGroupIter(tree)):
+    #         # start computing not for root but for first layer
+    #         if i > 0:
+    #             # iniziare a ciclare sul primo livello (nel caso cifar, superclassi)
+    #             for level_class in node:
+    #                 # se sopra di loro c'è root non ho ancestor (quindi il secondo termine nell'equazione è =0
+    #                 n_ancestors = 0 if i == 1 else 1
+    #                 # prendo tutte le foglie del nodo (root avrà 100, una superclasse ne ha 5)
+    #                 descendants = level_class.leaves
+    #                 # PRIMO TERMINE
+    #                 # se sono allultimo livello (quello delle classi, dove la heigth è zero,
+    #                 # la formula è beta - mean(beta_parent), quindi devo prendere un solo vettore dai pesi
+    #                 # come primo termine
+    #                 if level_class.height == 0:
+    #                     position = class_to_index(level_class.name)
+    #                     beta_vec_node = model.fc.weight.data[position][None, :]
+    #                 # se sono in un altro livello vado invece a prendere tutti i beta relativi alle leaf
+    #                 else:
+    #                     for j, classes_name in enumerate(descendants):
+    #                         # recupero l'indice associato al nome della classe
+    #                         position = class_to_index(classes_name.name)
+    #                         # prendo il vettore tra i pesi relativo a quell'indice
+    #                         beta_vec_node = model.fc.weight.data[position][None, :] if j == 0 else torch.cat((beta_vec_node, model.fc.weight.data[position][None, :]), 0)
+    #                 # SECONDO TERMINE
+    #                 # I have to do the same thing but this time with the leaves of the parent
+    #                 if n_ancestors is not 0:
+    #                     for k, superclasses_name in enumerate(level_class.ancestors[i-1].leaves):
+    #                         position = class_to_index(superclasses_name.name)
+    #                         beta_vec_parent = model.fc.weight.data[position][None, :] if k == 0 else torch.cat((beta_vec_parent, model.fc.weight.data[position][None, :]), 0)
+    #
+    #                     # se n_ancestor è zero significa che il secondo termine non c'è, è il caso del primo livello
+    #                     penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0) - torch.mean(beta_vec_parent, dim=0)))
+    #                 else:
+    #                     penalty += torch.linalg.norm(len(descendants) * (torch.mean(beta_vec_node, dim=0)))
+    #
+    #     print(f"Penalty:{penalty}")
+    #
+    #     loss += weight_decay * penalty
+    #
+    #     loss_dict["fine_penalty"] = fine_penalty.item()
+    #     loss_dict["coarse_penalty"] = coarse_penalty.item()
+    #     loss += weight_decay * (fine_penalty + coarse_penalty)
+    #
+    # else:
+    #     loss_dict["fine_penalty"] = 0.0
+    #     loss_dict["coarse_penalty"] = 0.0
 
     if sp_regularization:
         w = []

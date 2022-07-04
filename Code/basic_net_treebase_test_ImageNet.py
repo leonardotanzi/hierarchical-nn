@@ -20,13 +20,13 @@ import seaborn as sn
 import pandas as pd
 import random
 import plotly.express as px
+import pickle
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    test_dir = "..//..//cifar//test//"
     batch_size = 128
 
     model_name = "..//..//Models//Mat_version_210622//resnet_updatedmatrix_hloss_lr0001_wd01_1on16_best.pth"
@@ -47,8 +47,11 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    with open("pkl//imagenet_dataset.pkl", "rb") as f:
+        dataset = pickle.load(f)
+
+    test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
+
     dataset_size = len(test_loader)
 
     model = models.resnet18(pretrained=True)

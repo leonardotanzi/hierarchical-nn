@@ -17,6 +17,15 @@ class MyNode(Node):  # Add Node feature
             self.children = children
 
 
+def node_to_weights(classes, node, beta):
+    w = []
+    for n in node:
+        index = classes.index(n.name)
+        w.append(beta[index])
+    w = torch.cat(w, 0).view(-1, beta.shape[1])
+    return torch.mean(w, 0)
+
+
 def get_all_labels(tree):
 
     all_labels_node = []
