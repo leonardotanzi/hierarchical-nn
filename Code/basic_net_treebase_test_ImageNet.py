@@ -29,12 +29,12 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet_updatedmatrix_hloss_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Server//resnet-imagenet_hloss_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
 
-    tree = get_tree_from_file("..//..//Dataset//tree.txt")
+    tree = get_tree_from_file("..//..//dataset//ImageNet64//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 

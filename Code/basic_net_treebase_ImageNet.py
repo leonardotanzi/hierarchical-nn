@@ -34,8 +34,8 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
-    regularization = False
+    hierarchical_loss = True
+    regularization = True
     name = "resnet-imagenet"
 
     run_scheduler = False
@@ -86,8 +86,8 @@ if __name__ == "__main__":
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
-    with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
-        pickle.dump(dataset, f)
+    # with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
+    #     pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -111,7 +111,6 @@ if __name__ == "__main__":
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         model = nn.DataParallel(model)
-        
     model.to(device)
 
     # Optimizer
