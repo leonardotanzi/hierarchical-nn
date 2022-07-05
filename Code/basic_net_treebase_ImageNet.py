@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
-from tree import get_tree_from_file, get_all_labels, return_matrixes
+from tree import get_tree_from_file, get_all_labels, return_matrixes, get_all_labels_topdown, return_matrixes_topdown
 
 import numpy as np
 import os
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-imagenet"
+    name = "resnet-imagenet-topdown"
 
     run_scheduler = False
     sp_regularization = False
@@ -51,10 +51,12 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels = get_all_labels_topdown(tree)
+    # all_labels = get_all_labels(tree)
 
-    matrixes = return_matrixes(tree, plot=False)
-    matrixes.reverse()
+    matrixes = return_matrixes_topdown(tree, plot=False)
+    # matrixes = return_matrixes(tree, plot=False)
+    # matrixes.reverse()
 
     lens = [len(set(n)) for n in all_labels]
 
@@ -86,8 +88,8 @@ if __name__ == "__main__":
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
-    with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
-        pickle.dump(dataset, f)
+    # with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
+    #     pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -107,10 +109,12 @@ if __name__ == "__main__":
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
+    multigpu = False
     if torch.cuda.device_count() > 1:
+        multigpu = True
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        model = nn.DataParallel(model)
+        model = nn.parallel.DistributedDataParallel(model)
     model.to(device)
 
     # Optimizer
@@ -171,7 +175,7 @@ if __name__ == "__main__":
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
                                                                 model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes, True)
+                                                                sp_regularization, weight_decay, matrixes, multigpu)
 
                     # Backward + optimize
                     if phase == "train":

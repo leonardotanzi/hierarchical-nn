@@ -26,54 +26,6 @@ def node_to_weights(classes, node, beta):
     return torch.mean(w, 0)
 
 
-def get_all_labels(tree):
-
-    all_labels_node = []
-    # to convert the fine labels to any other level, read each node, count the leaves and add one integer for each
-    # leaves in the node
-
-    all_leaves_node = [leaf for leaf in tree.leaves]
-    for i in range(tree.height - 1):
-        labels = []
-        for leaf in all_leaves_node:
-            # check level ito check if all the leaf are equal for this level. to explain, this was made to solve the problem of
-            # root
-            # --shoes
-            # ----sandal
-            # ------sandal1
-            # ------sandal2
-            # ----sneaker
-            # if i do not do this, at first the label will be [sandal1, sandal2, sneaker] and then [sandal, shoes]
-            # because i will put in the list the ancestor of sneaker. in this way 'sneaker' wait sandal before going to shoes
-            check_level = True
-            for c in leaf.ancestors[-1].children:
-                if c not in all_leaves_node:
-                    check_level = False
-                    break
-            if len(leaf.ancestors) != 1 and check_level:
-                labels.append(leaf.ancestors[-1])
-            else:
-                labels.append(leaf)
-        all_leaves_node = labels
-        all_labels_node.append(labels)
-
-    all_labels = []
-    for label in all_labels_node:
-        i = 0
-        number = []
-        for counter, current_label in enumerate(label):
-            if counter == 0:
-                number.append(i)
-                prev_label = current_label
-            else:
-                if current_label.name != prev_label.name:
-                    i += 1
-                number.append(i)
-            prev_label = current_label
-        all_labels.append(number)
-    return all_labels
-
-
 def count_symbol(line):
     L = 0
     for i in line:
@@ -200,6 +152,73 @@ def get_tree_CIFAR():
     return root
 
 
+def get_all_labels(tree):
+
+    all_labels_node = []
+    # to convert the fine labels to any other level, read each node, count the leaves and add one integer for each
+    # leaves in the node
+
+    all_leaves_node = [leaf for leaf in tree.leaves]
+    for i in range(tree.height - 1):
+        labels = []
+        for leaf in all_leaves_node:
+            # check level ito check if all the leaf are equal for this level. to explain, this was made to solve the problem of
+            # root
+            # --shoes
+            # ----sandal
+            # ------sandal1
+            # ------sandal2
+            # ----sneaker
+            # if i do not do this, at first the label will be [sandal1, sandal2, sneaker] and then [sandal, shoes]
+            # because i will put in the list the ancestor of sneaker. in this way 'sneaker' wait sandal before going to shoes
+            check_level = True
+            for c in leaf.ancestors[-1].children:
+                if c not in all_leaves_node:
+                    check_level = False
+                    break
+            if len(leaf.ancestors) != 1 and check_level:
+                labels.append(leaf.ancestors[-1])
+            else:
+                labels.append(leaf)
+        all_leaves_node = labels
+        all_labels_node.append(labels)
+
+    all_labels = []
+    for label in all_labels_node:
+        i = 0
+        number = []
+        for counter, current_label in enumerate(label):
+            if counter == 0:
+                number.append(i)
+                prev_label = current_label
+            else:
+                if current_label.name != prev_label.name:
+                    i += 1
+                number.append(i)
+            prev_label = current_label
+        all_labels.append(number)
+    return all_labels
+
+
+def get_all_labels_topdown(tree):
+
+    all_labels = []
+    children = list(tree.children)
+    for i in range(tree.height - 1):
+        labels = []
+        next_children = []
+        for j, child in enumerate(children):
+            for _ in range(len(child.leaves)):
+                labels.append(j)
+        for child in children:
+            if len(child.children) == 0:
+                next_children.append(child.leaves)
+            else:
+                next_children.append(child.children)
+        children = [child for sublist in next_children for child in sublist]
+        all_labels.append(labels)
+    return all_labels
+
 def return_matrixes(tree, plot=False):
     matrixes = []
     # read each level and put all the classes name in separate lists
@@ -249,6 +268,55 @@ def return_matrixes(tree, plot=False):
 
         if plot:
             fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 4, height=2500 // 4)
+            fig.update_xaxes(side="top")
+            fig.show()
+
+    return matrixes
+
+
+def return_matrixes_topdown(tree, plot=False):
+    matrixes = []
+    # read each level and put all the classes name in separate lists
+    all_leaves = [leaf.name for leaf in tree.leaves]
+
+    all_labels_node = []
+    # read the superclasses for each layer and store in a list of list
+    all_leaves_node = [leaf for leaf in tree.leaves]
+    children = list(tree.children)
+    for i in range(tree.height - 1):
+        all_labels_node.append(children)
+        labels = []
+        next_children = []
+        for child in children:
+            if len(child.children) == 0:
+                next_children.append(child.leaves)
+            else:
+                next_children.append(child.children)
+        children = [child for sublist in next_children for child in sublist]
+
+    # reverse the list and substitute each node with its actual name
+    # all_labels_node.reverse()
+    all_labels_node = [[node.name for node in all_labels] for all_labels in all_labels_node]
+
+    # build one matrix for each layer that is not the last (we dont a matrix for the last)
+    for node_layer in all_labels_node:
+
+        # the size of the matrix is this because we have one entry for each of the superclass of the level we are
+        # considering, compared with each one of the leaf class (all_nodes[-1])
+        matrix = np.zeros((len(all_leaves), len(node_layer)))
+
+        for i, node_name in enumerate(node_layer):
+            # we find the actual node of the tree in order to extract the leaves
+            actual_node = find(tree, lambda node: node.name == node_name)
+            leaves = actual_node.leaves
+            # for each leaf i extract the index of the corresponding leaf and i set to 1 the entry in the matrix
+            for leaf in leaves:
+                index = all_leaves.index(leaf.name)
+                matrix[index][i] = 1
+        matrixes.append(matrix)
+
+        if plot:
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 2, height=2500 // 2)
             fig.update_xaxes(side="top")
             fig.show()
 

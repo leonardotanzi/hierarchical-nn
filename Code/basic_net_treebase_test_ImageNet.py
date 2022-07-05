@@ -10,7 +10,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
-from tree import get_tree_from_file, get_all_labels
+from tree import get_tree_from_file, get_all_labels, return_matrixes, return_matrixes_topdown, get_all_labels_topdown
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -41,7 +41,10 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels = get_all_labels_topdown(tree)
+
+    matrixes = return_matrixes_topdown(tree, plot=True)
+    # matrixes.reverse()
 
     lens = [len(n) for n in all_nodes]
 
