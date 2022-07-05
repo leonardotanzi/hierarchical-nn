@@ -44,7 +44,7 @@ if __name__ == "__main__":
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
-    tree = get_tree_from_file("..//..//Dataset//tree.txt")
+    tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -79,15 +79,15 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//Dataset//Imagenet_leaves"
+    train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
-    # with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
-    #     pickle.dump(dataset, f)
+    with open("..//..//pkl//imagenet_dataset.pkl", "wb") as f:
+        pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
                                                                 model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes)
+                                                                sp_regularization, weight_decay, matrixes, True)
 
                     # Backward + optimize
                     if phase == "train":
