@@ -106,6 +106,12 @@ if __name__ == "__main__":
     # Add last layer
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        model = nn.DataParallel(model)
+        
     model.to(device)
 
     # Optimizer
