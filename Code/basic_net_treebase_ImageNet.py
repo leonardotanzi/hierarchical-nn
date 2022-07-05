@@ -28,7 +28,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    batch_size = 128
+    batch_size = 1024
     n_epochs = 100
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -113,8 +113,7 @@ if __name__ == "__main__":
     if torch.cuda.device_count() > 1:
         multigpu = True
         print("Let's use", torch.cuda.device_count(), "GPUs!")
-        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        model = nn.parallel.DistributedDataParallel(model)
+        model = nn.DataParallel(model)
     model.to(device)
 
     # Optimizer
