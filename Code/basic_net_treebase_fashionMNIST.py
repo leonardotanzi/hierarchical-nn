@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string
-from tree import get_tree_from_file, get_tree_CIFAR, get_tree_FashionMNIST, get_all_labels
+from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, get_all_labels_topdown, return_matrixes_topdown
 
 import numpy as np
 import os
@@ -33,16 +33,17 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = False
-    name = "canc"
+    name = "resnet-fmnist-doublematrix"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
+    freeze = True
 
     # Classes and superclasses
-    file_name = "..//..//F_MNIST_data//fashionMNISTtree.txt"
+    file_name = "..//..//Dataset//F_MNIST_data//fashionMNISTtree.txt"
     tree = get_tree_from_file(file_name)
     # find(tree, lambda node: node.name == "-shirt/top").name = "T-shirt/top"
 
@@ -54,7 +55,13 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels_topdown = get_all_labels_topdown(tree)
+    all_labels_downtop = get_all_labels_downtop(tree)
+    all_labels = [*all_labels_topdown, *all_labels_downtop]
+
+    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
+    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
+    matrixes = [*matrixes_topdown, *matrixes_downtop]
 
     lens = [len(set(n)) for n in all_labels]
 
@@ -80,7 +87,7 @@ if __name__ == "__main__":
     transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
 
     # Load the data: train and test sets
-    train_dataset = datasets.FashionMNIST('..//..//F_MNIST_data', download=True, train=True, transform=transform)
+    train_dataset = datasets.FashionMNIST('..//..//Dataset//F_MNIST_data', download=True, train=True, transform=transform)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
 
@@ -95,8 +102,9 @@ if __name__ == "__main__":
     # Model
     model = models.resnet18(pretrained=True)
     # Freeze layers
-    for param in model.parameters():
-        param.requires_grad = False
+    if freeze:
+        for param in model.parameters():
+            param.requires_grad = False
 
     # Add last layer
     num_ftrs = model.fc.in_features
@@ -137,12 +145,12 @@ if __name__ == "__main__":
 
             running_loss = 0.0
             running_corrects = 0
-            running_corrects_coarser_level = [0 for i in range(len(all_nodes)-1)]
+            running_corrects_coarser_level = [0 for i in range(len(all_labels))]
             running_loss_fine = 0.0
-            running_loss_coarser_level = [0.0 for i in range(len(all_nodes)-1)]
+            running_loss_coarser_level = [0.0 for i in range(len(all_labels))]
 
-            epoch_acc_coarser = [0 for i in range(len(all_nodes)-1)]
-            epoch_loss_coarser = [0.0 for i in range(len(all_nodes)-1)]
+            epoch_acc_coarser = [0 for i in range(len(all_labels))]
+            epoch_loss_coarser = [0.0 for i in range(len(all_labels))]
 
             # Iterate over data
             for j, (inputs, labels) in enumerate(loader):
@@ -155,12 +163,12 @@ if __name__ == "__main__":
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
 
-                    #x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
-
                     _, preds = torch.max(outputs, 1)
 
-                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, model, 0.0, device,
-                                                    hierarchical_loss, regularization, sp_regularization, weight_decay, plot=False)
+                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
+                                                                model, 0.0, device, hierarchical_loss, regularization,
+                                                                sp_regularization, weight_decay, matrixes,
+                                                                multigpu=False)
 
                     # Backward + optimize
                     if phase == "train":
@@ -173,7 +181,7 @@ if __name__ == "__main__":
                 running_corrects += torch.sum(preds == labels.data).item()
                 running_loss_fine += loss_dict["loss_fine"]
 
-                for i in range(len(all_nodes)-1):
+                for i in range(len(all_labels)):
                     running_corrects_coarser_level[i] += accuracy_coarser_classes(outputs, labels, np.asarray(all_labels[i]),
                                                                    len(all_labels[i]), device)
                     running_loss_coarser_level[i] += loss_dict[f"loss_{i}"]
@@ -182,12 +190,12 @@ if __name__ == "__main__":
             epoch_acc = running_corrects / dataset_sizes[phase]
             epoch_loss_fine = running_loss_fine / dataset_sizes[phase]
 
-            for i in range(len(all_nodes)-1):
+            for i in range(len(all_labels)):
                 epoch_acc_coarser[i] = running_corrects_coarser_level[i] / dataset_sizes[phase]
                 epoch_loss_coarser[i] = running_loss_coarser_level[i] / dataset_sizes[phase]
 
             print(f"Step {j + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f}, Acc: {epoch_acc:.4f}")
-            for i in range(len(all_nodes) - 1):
+            for i in range(len(all_labels)):
                 print(f"{phase} Loss {i}: {epoch_loss_coarser[i]:.4f}, Accuracy {i}: {epoch_acc_coarser[i]:.4f}")
 
             if (j + 1) % n_total_steps == 0:

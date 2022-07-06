@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
-from tree import get_tree_from_file, get_all_labels, return_matrixes
+from tree import get_tree_from_file, get_all_labels, return_matrixes, get_all_labels_topdown, return_matrixes_topdown
 
 import numpy as np
 import os
@@ -52,10 +52,12 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels = get_all_labels_topdown(tree)
 
-    matrixes = return_matrixes(tree, plot=False)
-    matrixes.reverse()
+    matrixes = return_matrixes_topdown(tree, plot=False)
+
+    # matrixes = return_matrixes(tree, plot=False)
+    # matrixes.reverse()
 
     lens = [len(set(n)) for n in all_labels]
 

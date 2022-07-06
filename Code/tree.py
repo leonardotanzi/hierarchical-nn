@@ -152,7 +152,7 @@ def get_tree_CIFAR():
     return root
 
 
-def get_all_labels(tree):
+def get_all_labels_downtop(tree):
 
     all_labels_node = []
     # to convert the fine labels to any other level, read each node, count the leaves and add one integer for each
@@ -197,6 +197,7 @@ def get_all_labels(tree):
                 number.append(i)
             prev_label = current_label
         all_labels.append(number)
+    all_labels.reverse()
     return all_labels
 
 
@@ -219,7 +220,8 @@ def get_all_labels_topdown(tree):
         all_labels.append(labels)
     return all_labels
 
-def return_matrixes(tree, plot=False):
+
+def return_matrixes_downtop(tree, plot=False):
     matrixes = []
     # read each level and put all the classes name in separate lists
     all_leaves = [leaf.name for leaf in tree.leaves]
