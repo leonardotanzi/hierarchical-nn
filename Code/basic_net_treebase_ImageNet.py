@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
-from tree import get_tree_from_file, get_all_labels, return_matrixes, get_all_labels_topdown, return_matrixes_topdown
+from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, get_all_labels_topdown, return_matrixes_topdown
 
 import numpy as np
 import os
