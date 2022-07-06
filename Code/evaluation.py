@@ -16,14 +16,14 @@ def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
     h_acc = 0.0
 
     # read each couple of actual and predicted node, compute the ancestor, find the depth and compute metric
-    for n1, n2 in zip(node_actual_name, node_pred_name):
+    for i, (n1, n2) in enumerate(zip(node_actual_name, node_pred_name)):
         node_actual = find(tree, lambda node: node.name == n1)
         node_pred = find(tree, lambda node: node.name == n2)
         ca = commonancestors(node_actual, node_pred)
         depth = ca[-1].depth
         h_acc += depth / tree.height if n1 != n2 else 1
 
-    return h_acc
+    return (h_acc / i) * 100
 
 
 

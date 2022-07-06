@@ -10,7 +10,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
-from tree import get_tree_FashionMNIST, get_all_labels
+from tree import get_tree_FashionMNIST, get_all_labels_downtop, get_all_labels_topdown
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -27,11 +27,11 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     transform = Compose([ToTensor(), Normalize((0.5,), (0.5,))])
-    test_dataset = FashionMNIST('..//..//F_MNIST_data', download=True, train=False, transform=transform)
+    test_dataset = FashionMNIST('..//..//Dataset//F_MNIST_data', download=True, train=False, transform=transform)
 
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet-fmnist_hloss_lr001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//resnet-fmnist_lr001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
@@ -42,7 +42,9 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels_topdown = get_all_labels_topdown(tree)
+    all_labels_downtop = get_all_labels_downtop(tree)
+    all_labels = [*all_labels_topdown, *all_labels_downtop]
 
     lens = [len(n) for n in all_nodes]
 

@@ -26,21 +26,21 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     batch_size = 128
-    n_epochs = 100
+    n_epochs = 60
     learning_rate = 0.01
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
+    hierarchical_loss = False
     regularization = False
-    name = "resnet-fmnist-doublematrix"
+    name = "resnet-fmnist-doublematrix-unfreeze"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
-    freeze = True
+    freeze = False
 
     # Classes and superclasses
     file_name = "..//..//Dataset//F_MNIST_data//fashionMNISTtree.txt"
