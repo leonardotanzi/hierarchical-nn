@@ -23,15 +23,16 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
     loss_dict = {"loss_fine": loss.item()}
 
     if hierarchical_loss:
-
+        loss_hierarchical = 0.0
         # start from the root i compute all the other losses
         for i, labels in enumerate(all_labels):
-            labels_coarser = sparser2coarser(actual, torch.tensor(labels).type(torch.int64).to(device))
-            predicted_coarser = torch.matmul(predicted, torch.tensor(matrixes[i]).type(torch.float32).to(device))
+            labels_coarser = sparser2coarser(actual, torch.tensor(labels, requires_grad=False).type(torch.int64).to(device))
+            predicted_coarser = torch.matmul(predicted, torch.tensor(matrixes[i], requires_grad=False).type(torch.float32).to(device))
             loss_coarser = cross_entropy(predicted_coarser, labels_coarser, reduction="sum")
 
             loss_dict[f"loss_{i}"] = loss_coarser.item()
-            loss += loss_coarser
+            loss_hierarchical += loss_coarser
+        loss += 2 * loss_hierarchical
 
     else:
         for i, labels in enumerate(all_labels):

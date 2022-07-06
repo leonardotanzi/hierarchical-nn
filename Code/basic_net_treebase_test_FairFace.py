@@ -6,11 +6,8 @@ import torch.nn as nn
 import torchvision
 
 from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_coarser_classes, hierarchical_accuracy
-from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
-from dataset import exclude_classes, ImageFolderNotAlphabetic
-from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
-from tree import get_all_labels, get_tree_from_file
+from evaluation import accuracy_coarser_classes, hierarchical_accuracy, fairness_gender
+from tree import get_all_labels_downtop, get_tree_from_file
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -29,24 +26,24 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet-fairface_hloss_reg_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//resnet-fairface_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
 
-    tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFace.txt")
+    tree = get_tree_from_file("..//..//Dataset//FairFace//treeFairFace.txt")
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels(tree)
+    all_labels = get_all_labels_downtop(tree)
 
     lens = [len(n) for n in all_nodes]
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    with open("pkl//fairfaces_dataset.pkl", "rb") as f:
+    with open("..//..//pkl//fairfaces_dataset.pkl", "rb") as f:
         dataset = pickle.load(f)
 
     test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -97,6 +94,7 @@ if __name__ == "__main__":
     # 2) Confusion Matrixes
 
     # 2.1) CLASSES
+    print(f"Fairness metric: {fairness_gender(y_true, y_pred, 'f1-score', all_leaves)}")
     print(classification_report(y_true, y_pred))
     cf_matrix = confusion_matrix(y_true, y_pred)
     print(cf_matrix)

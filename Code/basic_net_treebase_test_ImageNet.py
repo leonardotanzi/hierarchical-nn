@@ -10,7 +10,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
-from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, return_matrixes_topdown, get_all_labels_topdown
+from tree import get_tree_from_file, get_all_labels_downtop, get_all_labels_topdown
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Server//resnet-imagenet_hloss_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Server//resnet-imagenet-doublemat-unfreezed_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
@@ -41,9 +41,9 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels_topdown(tree)
-
-    matrixes = return_matrixes_topdown(tree, plot=False)
+    all_labels_topdown = get_all_labels_topdown(tree)
+    all_labels_downtop = get_all_labels_downtop(tree)
+    all_labels = [*all_labels_topdown, *all_labels_downtop]
 
     lens = [len(n) for n in all_nodes]
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-    # model = nn.DataParallel(model)
+    model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()

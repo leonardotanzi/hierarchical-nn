@@ -3,6 +3,7 @@ import torch
 from utils import sparser2coarser
 from anytree.util import commonancestors
 from anytree.search import find
+from sklearn.metrics import classification_report
 
 
 def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
@@ -26,11 +27,20 @@ def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
     return (h_acc / i) * 100
 
 
+def fairness_gender(predicted, actual, metric, all_leaves):
 
-    pass
-    # ca(node1, node2)
-    # ca.depth
-    # return depth/tree_height
+    dict_report = classification_report(predicted, actual, output_dict=True)
+
+    precision_male = 0.0
+    precision_female = 0.0
+    for i, leaf in enumerate(all_leaves):
+        if leaf.startswith("Male"):
+            x = dict_report[str(i)]
+            precision_male += dict_report[str(i)][metric]
+        elif leaf.startswith("Female"):
+            precision_female += dict_report[str(i)][metric]
+
+    return precision_male / 6, precision_female / 6
 
 
 def accuracy_coarser_classes(predicted, actual, coarser_labels, n_superclass, device):
