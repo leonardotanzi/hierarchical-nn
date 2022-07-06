@@ -36,11 +36,12 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-imagenet-topdown"
+    name = "resnet-imagenet-topdown-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
+    freeze = False
     less_samples = True
     reduction_factor = 1 if less_samples is False else 16
 
@@ -102,8 +103,9 @@ if __name__ == "__main__":
     # Model
     model = models.resnet18(pretrained=True)
     # Freeze layers
-    for param in model.parameters():
-        param.requires_grad = False
+    if freeze:
+        for param in model.parameters():
+            param.requires_grad = False
 
     # Add last layer
     num_ftrs = model.fc.in_features

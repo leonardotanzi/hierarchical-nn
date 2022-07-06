@@ -29,12 +29,12 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Server//resnet-imagenet_hloss_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Server//resnet-imagenet-topdown_hloss_reg_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
 
-    tree = get_tree_from_file("..//..//dataset//ImageNet64//tree.txt")
+    tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -43,14 +43,14 @@ if __name__ == "__main__":
 
     all_labels = get_all_labels_topdown(tree)
 
-    matrixes = return_matrixes_topdown(tree, plot=True)
+    matrixes = return_matrixes_topdown(tree, plot=False)
     # matrixes.reverse()
 
     lens = [len(n) for n in all_nodes]
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    with open("pkl//imagenet_dataset.pkl", "rb") as f:
+    with open("..//..//pkl//imagenet_dataset.pkl", "rb") as f:
         dataset = pickle.load(f)
 
     test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -60,6 +60,7 @@ if __name__ == "__main__":
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()

@@ -36,13 +36,14 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-fairface-canccc"
+    name = "resnet-fairface-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
-    weight_decay = 10
-    less_samples = True
+    weight_decay = 0.1
+    less_samples = False
     reduction_factor = 1 if less_samples is False else 16
+    freeze = False
 
     tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFace.txt")
 
@@ -100,8 +101,9 @@ if __name__ == "__main__":
     # Model
     model = models.resnet18(pretrained=True)
     # Freeze layers
-    for param in model.parameters():
-        param.requires_grad = False
+    if freeze:
+        for param in model.parameters():
+            param.requires_grad = False
 
     # Add last layer
     num_ftrs = model.fc.in_features
