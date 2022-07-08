@@ -21,6 +21,7 @@ import pandas as pd
 import random
 import plotly.express as px
 import pickle
+from torchviz import make_dot
 
 
 if __name__ == "__main__":
@@ -33,6 +34,7 @@ if __name__ == "__main__":
 
     latex = False
     plot_cf = True
+    graph = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
@@ -77,6 +79,9 @@ if __name__ == "__main__":
         labels = labels.to(device)
 
         outputs = model(inputs)
+
+        if graph:
+            make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("rnn_torchviz", format="png")
 
         h_acc += hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 
