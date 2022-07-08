@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Server//resnet-imagenet-doublemat-unfreezed_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Server//resnet-imagenet-doublemat-unfreezed-HLossx2_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
