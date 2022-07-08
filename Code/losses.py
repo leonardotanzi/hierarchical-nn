@@ -18,9 +18,9 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
     batch = predicted.size(0)
 
     predicted = torch.softmax(predicted, dim=1) + 1e-6
-    loss = 0.0 #cross_entropy(predicted, actual, reduction="sum")
+    loss = cross_entropy(predicted, actual, reduction="sum")
 
-    loss_dict = {"loss_fine": 0.0} #loss.item()}
+    loss_dict = {"loss_fine": loss.item()}
 
     if hierarchical_loss:
         loss_hierarchical = 0.0
@@ -32,7 +32,7 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
 
             loss_dict[f"loss_{i}"] = loss_coarser.item()
             loss_hierarchical += loss_coarser
-        loss = loss_hierarchical
+        loss += 4 * loss_hierarchical
 
     else:
         for i, labels in enumerate(all_labels):

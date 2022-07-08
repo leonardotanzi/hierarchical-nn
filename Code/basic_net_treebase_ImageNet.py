@@ -29,14 +29,14 @@ if __name__ == "__main__":
     seed_everything(0)
 
     batch_size = 1024
-    n_epochs = 100
+    n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
-    regularization = False
-    name = "resnet-imagenet-doublemat-unfreezed-nofineloss"
+    hierarchical_loss = True
+    regularization = True
+    name = "resnet-imagenet-doublemat-unfreezed-hlossx2"
 
     run_scheduler = False
     sp_regularization = False
