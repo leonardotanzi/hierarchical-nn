@@ -59,8 +59,8 @@ if __name__ == "__main__":
     all_labels_downtop = get_all_labels_downtop(tree)
     all_labels = [*all_labels_topdown, *all_labels_downtop]
 
-    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
+    matrixes_topdown = return_matrixes_topdown(tree, plot=True)
+    matrixes_downtop = return_matrixes_downtop(tree, plot=True)
     matrixes = [*matrixes_topdown, *matrixes_downtop]
 
     lens = [len(set(n)) for n in all_labels]

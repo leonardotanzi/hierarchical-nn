@@ -253,13 +253,13 @@ def build_fairface():
         age = row["age"]
         if age == "more than 70":
             age = "70-99"
-        gender = row["gender"]
-        name = "_".join([gender, age])
-        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves//{name}"):
-            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves//{name}")
+        race = row["race"]
+        name = "_".join([race.replace(" ", ""), age])
+        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves_races//{name}"):
+            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves_races//{name}")
 
         out_name = "train_" + file.split("/")[1]
-        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves//{name}//{out_name}")
+        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{name}//{out_name}")
 
 
 if __name__ == "__main__":
@@ -270,5 +270,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    build_imagenet()
+    # build_fairface()
     pass

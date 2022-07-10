@@ -9,7 +9,7 @@ from evaluation import accuracy_coarser_classes, hierarchical_accuracy
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
-from tree import get_tree_from_file, get_all_labels, return_matrixes, get_all_labels_topdown, return_matrixes_topdown
+from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, get_all_labels_topdown, return_matrixes_topdown
 
 import numpy as np
 import os
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-fairface-unfreezed"
+    name = "resnet-fairfaceraces-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -45,19 +45,20 @@ if __name__ == "__main__":
     reduction_factor = 1 if less_samples is False else 16
     freeze = False
 
-    tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFace.txt")
+    tree = get_tree_from_file("..//..//dataset//FairFace//treeFairFaceRaces.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    all_labels = get_all_labels_topdown(tree)
+    all_labels_topdown = get_all_labels_topdown(tree)
+    all_labels_downtop = get_all_labels_downtop(tree)
+    all_labels = [*all_labels_topdown, *all_labels_downtop]
 
-    matrixes = return_matrixes_topdown(tree, plot=False)
-
-    # matrixes = return_matrixes(tree, plot=False)
-    # matrixes.reverse()
+    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
+    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
+    matrixes = [*matrixes_topdown, *matrixes_downtop]
 
     lens = [len(set(n)) for n in all_labels]
 
@@ -82,7 +83,7 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//Dataset//FairFace//FairFace_leaves"
+    train_dir = "..//..//Dataset//FairFace//FairFace_leaves_races"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)

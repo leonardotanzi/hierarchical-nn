@@ -53,7 +53,7 @@ if __name__ == "__main__":
     coarse_labels = get_coarse_labels(superclasses_names=coarse_classes)
 
     # Path
-    model_path = "..//..//Models//New_160622//"
+    model_path = "../../../Models/New_160622//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")

@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-imagenet-doublemat-unfreezed-hlossx2"
+    name = "resnet-imagenet-doublemat-unfreezed-onlyhloss"
 
     run_scheduler = False
     sp_regularization = False
