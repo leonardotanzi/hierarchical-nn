@@ -1,6 +1,6 @@
 import torch
 from torchvision.transforms import Compose, ToTensor, Normalize
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import models
 import torch.nn as nn
 import torchvision
@@ -17,6 +17,51 @@ import pandas as pd
 import random
 import plotly.express as px
 import pickle
+import glob
+import os
+import cv2
+import pandas
+
+
+class CustomDataset(Dataset):
+    """Face Landmarks dataset."""
+
+    def __init__(self, root_dir, classes, transform=None):
+
+        df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_val.csv")
+
+        self.root_dir = root_dir
+        self.transform = transform
+        self.classes = classes
+        file_list = glob.glob(self.root_dir + "*")
+        print(file_list)
+        self.data = []
+        for class_path in file_list:
+            class_name = class_path.split("\\")[-1]
+            for img_path in glob.glob(class_path + "\\*.jpg"):
+                key = "val/" + img_path.split("\\")[-1]
+                race = df[df['file'] == key].race.values[0]
+                race = race.replace(" ", "")
+                race = race.replace("_", "")
+                self.data.append([img_path, class_name, race])
+
+        print(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path, class_name, race = self.data[idx]
+        img = cv2.imread(img_path)
+
+        class_id = self.classes.index(class_name)
+
+        if self.transform:
+            img = self.transform(img)
+
+        class_id = torch.tensor([class_id])
+
+        return img, class_name, race
 
 
 if __name__ == "__main__":
@@ -25,7 +70,7 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet-fairface_lr0001_wd01_1on16_best.pth"
+    model_name = "..\\..\\Models\\Mat_version_210622\\resnet-fairface-flat_lr0001_wd01_1on1_best.pth"
 
     latex = False
     plot_cf = True
@@ -34,14 +79,16 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    val_dir = "..//..//Dataset//FairFace//FairFace_flat//val"
+    val_dir = "..\\..\\Dataset\\FairFace\\FairFace_flat\\val\\"
 
     # Load the data: train and test sets
-    val_dataset = ImageFolderNotAlphabetic(val_dir, classes=classes, transform=transform)
+    # val_dataset = ImageFolderNotAlphabetic(val_dir, classes=classes, transform=transform)
+    # test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
-    test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
+    val_custom = CustomDataset(val_dir, classes, transform)
+    test_loader_custom = DataLoader(val_custom, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
-    dataset_size = len(test_loader)
+    dataset_size = len(test_loader_custom)
 
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features
@@ -58,7 +105,7 @@ if __name__ == "__main__":
     # iterate over test data
     h_acc = 0.0
 
-    for inputs, labels in test_loader:
+    for inputs, labels, race in test_loader_custom:
         inputs = inputs.to(device)
         labels = labels.to(device)
 
@@ -70,7 +117,8 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    print(f"Hierarchical_accuracy is {h_acc/dataset_size:.4f}")
+
+
 
     ###############################################################################################################
 

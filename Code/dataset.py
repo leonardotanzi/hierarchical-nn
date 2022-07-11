@@ -244,8 +244,8 @@ def build_imagenet():
             cv2.imwrite(out_name, img)
 
 
-def build_fairface():
-    df = pandas.read_csv("..//..//dataset//FairFace//fairface_label_train.csv")
+def build_tree_fairface(phase):
+    df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_{phase}.csv")
     print(df['age'].unique())
 
     for index, row in df.iterrows():
@@ -254,12 +254,15 @@ def build_fairface():
         if age == "more than 70":
             age = "70-99"
         race = row["race"]
-        name = "_".join([race.replace(" ", ""), age])
-        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves_races//{name}"):
-            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves_races//{name}")
+        race = race.replace(" ", "")
+        race = race.replace("_", "")
 
-        out_name = "train_" + file.split("/")[1]
-        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{name}//{out_name}")
+        name = "_".join([race, age])
+        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}"):
+            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}")
+
+        out_name = file.split("/")[1]
+        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}//{out_name}")
 
 
 def build_flat_fairface(phase):
@@ -276,7 +279,7 @@ def build_flat_fairface(phase):
         if not os.path.exists(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}"):
             os.makedirs(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}")
 
-        out_name = f"train_{i}_" + file.split("/")[1]
+        out_name = file.split("/")[1]
         shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}",
                     f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}//{out_name}")
 
@@ -289,5 +292,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    build_flat_fairface("val")
+    build_tree_fairface("train")
     pass
