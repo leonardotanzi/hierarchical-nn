@@ -32,7 +32,7 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
 
             loss_dict[f"loss_{i}"] = loss_coarser.item()
             loss_hierarchical += loss_coarser
-        loss = loss_hierarchical
+        loss += loss_hierarchical
 
     else:
         for i, labels in enumerate(all_labels):

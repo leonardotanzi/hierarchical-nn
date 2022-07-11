@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     batch_size = 128
 
-    model_name = "..//..//Models//Server//resnet-imagenet-doublemat-unfreezed-hlossx2_hloss_reg_lr0001_wd01_1on16_best.pth"
+    model_name = "..//..//Models//Server//resnet-imagenet-doublemat-unfreezed-onlyhloss_hloss_reg_lr0001_wd01_1on16_best.pth"
 
     latex = False
     plot_cf = True
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     model = models.resnet18(pretrained=True)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-    model = nn.DataParallel(model)
+    # model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()

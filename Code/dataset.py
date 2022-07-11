@@ -125,13 +125,13 @@ class ImageFolderNotAlphabetic(datasets.DatasetFolder):
         return classes, class_to_idx
 
 
-def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False):
+def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False, reduction_factor_val=16):
     train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
     datasets = {}
 
     train_idx = [index for i, index in enumerate(train_idx) if i % reduction_factor == 0]
     if reduce_val:
-        val_idx = [index for i, index in enumerate(val_idx) if i % reduction_factor == 0]
+        val_idx = [index for i, index in enumerate(val_idx) if i % reduction_factor_val == 0]
 
     datasets["train"] = Subset(dataset, train_idx)
     datasets["val"] = Subset(dataset, val_idx)
@@ -262,6 +262,25 @@ def build_fairface():
         shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{name}//{out_name}")
 
 
+def build_flat_fairface():
+    df = pandas.read_csv("..//..//dataset//FairFace//fairface_label_train.csv")
+    print(df['age'].unique())
+
+    for i, (index, row) in enumerate(df.iterrows()):
+        file = row["file"]
+        age = row["age"]
+        if age == "more than 70":
+            age = "70-99"
+
+        name = age
+        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_flat//{name}"):
+            os.makedirs(f"..//..//dataset//FairFace//FairFace_flat//{name}")
+
+        out_name = f"train_{i}_" + file.split("/")[1]
+        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}",
+                    f"..//..//dataset//FairFace//FairFace_flat//{name}//{out_name}")
+
+
 if __name__ == "__main__":
     # transform = transforms.Compose(
     #     [transforms.ToTensor(),
@@ -270,5 +289,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    # build_fairface()
+    build_flat_fairface()
     pass

@@ -36,13 +36,13 @@ if __name__ == "__main__":
 
     hierarchical_loss = True
     regularization = True
-    name = "resnet-imagenet-doublemat-unfreezed-onlyhloss"
+    name = "resnet-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 16
+    reduction_factor = 1 if less_samples is False else 64
     freeze = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
