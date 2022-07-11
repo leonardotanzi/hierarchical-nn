@@ -15,6 +15,7 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import lr_scheduler
 import timeit
+import pickle
 
 
 if __name__ == "__main__":
@@ -50,15 +51,12 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//Dataset//FairFace//FairFace_flat"
+    train_dir = "..//..//Dataset//FairFace//FairFace_flat//train"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=classes, transform=transform)
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor)
-
-    # with open("pkl//fairfaces_dataset.pkl", "wb") as f:
-    #     pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)

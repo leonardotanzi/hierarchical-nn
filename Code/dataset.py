@@ -262,8 +262,8 @@ def build_fairface():
         shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{name}//{out_name}")
 
 
-def build_flat_fairface():
-    df = pandas.read_csv("..//..//dataset//FairFace//fairface_label_train.csv")
+def build_flat_fairface(phase):
+    df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_{phase}.csv")
     print(df['age'].unique())
 
     for i, (index, row) in enumerate(df.iterrows()):
@@ -273,12 +273,12 @@ def build_flat_fairface():
             age = "70-99"
 
         name = age
-        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_flat//{name}"):
-            os.makedirs(f"..//..//dataset//FairFace//FairFace_flat//{name}")
+        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}"):
+            os.makedirs(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}")
 
         out_name = f"train_{i}_" + file.split("/")[1]
         shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}",
-                    f"..//..//dataset//FairFace//FairFace_flat//{name}//{out_name}")
+                    f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}//{out_name}")
 
 
 if __name__ == "__main__":
@@ -289,5 +289,5 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    build_flat_fairface()
+    build_flat_fairface("val")
     pass
