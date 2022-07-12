@@ -34,8 +34,8 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
-    regularization = False
+    hierarchical_loss = True
+    regularization = True
     name = "resnet-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
