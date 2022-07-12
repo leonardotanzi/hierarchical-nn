@@ -27,6 +27,22 @@ def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
     return (h_acc / i) * 100
 
 
+def compute_fair_accuracy(predicted, actual, races):
+
+    race_total = {"Black": 0, "White": 0, "EastAsian": 0, "Indian": 0, "LatinoHispanic": 0, "MiddleEastern": 0, "SoutheastAsian": 0}
+    race_correct = {"Black": 0, "White": 0, "EastAsian": 0, "Indian": 0, "LatinoHispanic": 0, "MiddleEastern": 0, "SoutheastAsian": 0}
+
+    for p, a, r in zip(predicted, actual, races):
+        if p == a:
+            race_correct[r] += 1
+        race_total[r] += 1
+
+    for key in race_total:
+        race_correct[key] /= race_total[key]
+
+    return race_correct
+
+
 def fairness_gender(predicted, actual, metric, all_leaves):
 
     dict_report = classification_report(predicted, actual, output_dict=True)

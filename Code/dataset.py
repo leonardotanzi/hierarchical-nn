@@ -1,6 +1,6 @@
 from torchvision import datasets
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset
+from torch.utils.data import Subset, Dataset
 import os
 import torchvision
 import numpy as np
@@ -10,6 +10,8 @@ import cv2
 from PIL import Image
 import pandas
 import shutil
+import torch
+import glob
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
@@ -282,6 +284,45 @@ def build_flat_fairface(phase):
         out_name = file.split("/")[1]
         shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}",
                     f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}//{out_name}")
+
+
+class CustomFairFace(Dataset):
+
+    def __init__(self, root_dir, classes, transform=None):
+
+        df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_val.csv")
+
+        self.root_dir = root_dir
+        self.transform = transform
+        self.classes = classes
+        file_list = glob.glob(self.root_dir + "*")
+        print(file_list)
+        self.data = []
+        for class_path in file_list:
+            class_name = class_path.split("\\")[-1]
+            for img_path in glob.glob(class_path + "\\*.jpg"):
+                key = "val/" + img_path.split("\\")[-1]
+                race = df[df['file'] == key].race.values[0]
+                race = race.replace(" ", "")
+                race = race.replace("_", "")
+                self.data.append([img_path, class_name, race])
+
+        print(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path, class_name, race = self.data[idx]
+        img = cv2.imread(img_path)
+
+        class_id = self.classes.index(class_name)
+
+        if self.transform:
+            img = self.transform(img)
+
+        class_id = torch.tensor(class_id)
+        return img, class_id, race
 
 
 if __name__ == "__main__":

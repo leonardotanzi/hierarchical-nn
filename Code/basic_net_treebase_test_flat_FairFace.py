@@ -6,8 +6,8 @@ import torch.nn as nn
 import torchvision
 
 from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_coarser_classes, hierarchical_accuracy, fairness_gender
-from dataset import ImageFolderNotAlphabetic
+from evaluation import accuracy_coarser_classes, hierarchical_accuracy, fairness_gender, compute_fair_accuracy
+from dataset import ImageFolderNotAlphabetic, CustomFairFace
 
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
@@ -21,47 +21,6 @@ import glob
 import os
 import cv2
 import pandas
-
-
-class CustomDataset(Dataset):
-    """Face Landmarks dataset."""
-
-    def __init__(self, root_dir, classes, transform=None):
-
-        df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_val.csv")
-
-        self.root_dir = root_dir
-        self.transform = transform
-        self.classes = classes
-        file_list = glob.glob(self.root_dir + "*")
-        print(file_list)
-        self.data = []
-        for class_path in file_list:
-            class_name = class_path.split("\\")[-1]
-            for img_path in glob.glob(class_path + "\\*.jpg"):
-                key = "val/" + img_path.split("\\")[-1]
-                race = df[df['file'] == key].race.values[0]
-                race = race.replace(" ", "")
-                race = race.replace("_", "")
-                self.data.append([img_path, class_name, race])
-
-        print(self.data)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        img_path, class_name, race = self.data[idx]
-        img = cv2.imread(img_path)
-
-        class_id = self.classes.index(class_name)
-
-        if self.transform:
-            img = self.transform(img)
-
-        class_id = torch.tensor([class_id])
-
-        return img, class_name, race
 
 
 if __name__ == "__main__":
@@ -85,7 +44,7 @@ if __name__ == "__main__":
     # val_dataset = ImageFolderNotAlphabetic(val_dir, classes=classes, transform=transform)
     # test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
-    val_custom = CustomDataset(val_dir, classes, transform)
+    val_custom = CustomFairFace(val_dir, classes, transform)
     test_loader_custom = DataLoader(val_custom, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
     dataset_size = len(test_loader_custom)
@@ -101,7 +60,7 @@ if __name__ == "__main__":
 
     y_pred = []
     y_true = []
-
+    all_races = []
     # iterate over test data
     h_acc = 0.0
 
@@ -117,6 +76,10 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
+        all_races.extend(race)
+
+    acc = compute_fair_accuracy(y_pred, y_true, all_races)
+    print(acc)
 
 
 

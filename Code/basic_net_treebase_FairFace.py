@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    train_dir = "..//..//Dataset//FairFace//FairFace_leaves_races"
+    train_dir = "..//..//Dataset//FairFace//FairFace_leaves_races//train"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
