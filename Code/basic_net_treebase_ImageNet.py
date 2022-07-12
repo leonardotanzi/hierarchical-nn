@@ -21,6 +21,7 @@ from anytree.search import find
 from anytree.exporter import DotExporter
 import random
 import pickle
+import argparse
 
 
 if __name__ == "__main__":
@@ -28,21 +29,25 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-hl", "--hloss", type=bool, required=True, help="Using loss hierarchical or not (y/n)")
+    args = vars(ap.parse_args())
+
     batch_size = 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
-    regularization = True
+    hierarchical_loss = args["hloss"]
+    regularization = args["hloss"]
     name = "resnet-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 128
+    reduction_factor = 1 if less_samples is False else 256
     freeze = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
