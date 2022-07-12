@@ -30,7 +30,7 @@ if __name__ == "__main__":
     seed_everything(0)
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("-hl", "--hloss", type=bool, required=True, help="Using loss hierarchical or not (y/n)")
+    ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
     batch_size = 1024
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = args["hloss"]
-    regularization = args["hloss"]
+    hierarchical_loss = (args["hloss"] == "True")
+    regularization = (args["hloss"] == "True")
     name = "resnet-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
