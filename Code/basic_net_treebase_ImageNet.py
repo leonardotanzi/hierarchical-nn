@@ -41,13 +41,13 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    name = "resnet-imagenet-doublemat-unfreezed"
+    name = "vgg-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 128
     freeze = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.resnet18(pretrained=True)
+    model = models.vgg16(pretrained=True)
     # Freeze layers
     if freeze:
         for param in model.parameters():

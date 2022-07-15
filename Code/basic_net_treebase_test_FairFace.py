@@ -9,6 +9,8 @@ from inout import to_latex_heatmap, save_list
 from evaluation import accuracy_coarser_classes, hierarchical_accuracy, fairness_gender, compute_fair_accuracy
 from tree import get_all_labels_downtop, get_tree_from_file
 from dataset import CustomFairFace
+from utils import sparser2coarser
+
 from anytree import LevelOrderGroupIter
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
@@ -49,7 +51,7 @@ if __name__ == "__main__":
     # val_dataset = ImageFolderNotAlphabetic(val_dir, classes=classes, transform=transform)
     # test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
-    val_custom = CustomFairFace(val_dir, all_leaves, transform)
+    val_custom = CustomFairFace(val_dir, classes=["0-2", "3-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-99"], transform=transform)
     test_loader_custom = DataLoader(val_custom, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
     dataset_size = len(test_loader_custom)
 
@@ -87,6 +89,8 @@ if __name__ == "__main__":
         y_true.extend(labels)
         all_races.extend(races)
 
+    coarser_labels = [j for j in range(7) for i in range(9)]
+    y_pred = sparser2coarser(y_pred, np.asarray(coarser_labels))
     acc = compute_fair_accuracy(y_pred, y_true, all_races)
     print(acc)
 

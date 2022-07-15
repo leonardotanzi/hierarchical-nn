@@ -269,7 +269,7 @@ def return_matrixes_downtop(tree, plot=False):
         matrixes.append(matrix)
 
         if plot:
-            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 4, height=2500 // 4)
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 2, height=2500 // 2)
             fig.update_xaxes(side="top")
             fig.show()
 
