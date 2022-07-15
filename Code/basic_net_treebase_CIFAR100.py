@@ -25,20 +25,21 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     batch_size = 128
-    n_epochs = 100
+    n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
-    regularization = False
-    name = "resnet_cifar100"
+    hierarchical_loss = True
+    regularization = True
+    architecture = "resnet"
+    name = f"{architecture}_cifar100"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 64
+    reduction_factor = 1 if less_samples is False else 16
     freeze = False
 
     # Classes and superclasses
@@ -90,6 +91,8 @@ if __name__ == "__main__":
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4,)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
+
+    print(f"Using {dataset_sizes['train']} samples for training, {dataset_sizes['train']/len(all_leaves)} for each class")
 
     # Check lr_ratio
     lr_ratio = 1 / len(train_loader)
@@ -163,7 +166,7 @@ if __name__ == "__main__":
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
                                                                 model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes)
+                                                                sp_regularization, weight_decay, matrixes, architecture)
 
                     # Backward + optimize
                     if phase == "train":

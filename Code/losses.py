@@ -13,7 +13,7 @@ def cross_entropy(predicted, actual, reduction):
 
 
 def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_leaves, model, w0, device, hierarchical_loss,
-                              regularization, sp_regularization, weight_decay, matrixes, multigpu=False):
+                              regularization, sp_regularization, weight_decay, matrixes, architecture, multigpu=False):
 
     batch = predicted.size(0)
 
@@ -50,8 +50,10 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
                 if multigpu:
                     beta_vec = model.module.fc.weight.data
                 else:
-                    beta_vec = model.classifier[6].weight.data
-
+                    if architecture == "vgg":
+                        beta_vec = model.classifier[6].weight.data
+                    elif architecture == "resnet":
+                        beta_vec = model.fc.weight.data
                 weights_node = node_to_weights(all_leaves, leaves_node, beta_vec)
                 weights_parent = node_to_weights(all_leaves, leaves_parent, beta_vec)
                 penalty += ((len(node.leaves))**2)*((torch.norm(weights_node - weights_parent))**2)
