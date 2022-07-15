@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    name = "inception-imagenet-doublemat-unfreezed"
+    name = "efficientnet-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -107,15 +107,15 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.inception_v3(pretrained=True)
+    model = models.efficientnet_b7(pretrained=True)
     # Freeze layers
     if freeze:
         for param in model.parameters():
             param.requires_grad = False
 
     # Add last layer
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    num_ftrs = model.classifier[1].in_features
+    model.classifier[1] = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
     multigpu = False
     # if torch.cuda.device_count() > 1:
