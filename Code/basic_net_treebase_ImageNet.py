@@ -86,7 +86,7 @@ if __name__ == "__main__":
     # Log
     writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((128, 128))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((224, 224))])
 
     train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
