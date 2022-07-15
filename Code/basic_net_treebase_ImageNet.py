@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    name = "vgg-imagenet-doublemat-unfreezed"
+    name = "canc" # "vgg-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -114,8 +114,9 @@ if __name__ == "__main__":
             param.requires_grad = False
 
     # Add last layer
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    # num_ftrs = model.fc.in_features
+    num_ftrs = model.classifier[6].in_features
+    model.classifier[6] = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
     multigpu = False
     # if torch.cuda.device_count() > 1:
