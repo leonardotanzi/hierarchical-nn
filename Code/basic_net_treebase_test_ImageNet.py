@@ -1,5 +1,5 @@
 import torch
-from torchvision.transforms import Compose, ToTensor, Normalize
+from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
@@ -28,9 +28,11 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    batch_size = 128
+    batch_size = 32
 
-    model_name = "..//..//Models//Server//vgg-imagenet-doublemat-unfreezed_hloss_reg_lr0001_wd01_1on128_best.pth"
+    architecture = "inception"
+
+    model_name = "..//..//Models//Server//inception-imagenet-doublemat-unfreezed_lr0001_wd01_1on128_best.pth"
 
     latex = False
     plot_cf = False
@@ -49,22 +51,24 @@ if __name__ == "__main__":
 
     lens = [len(n) for n in all_nodes]
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
+        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    with open("..//..//pkl//imagenet_dataset.pkl", "rb") as f:
+    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" else "..//..//pkl//imagenet_dataset.pkl"
+    with open(pkl, "rb") as f:
         dataset = pickle.load(f)
 
     test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
 
     dataset_size = len(test_loader)
 
-    # model = models.resnet18(pretrained=True)
-    model = models.vgg16(pretrained=True)
-    # num_ftrs = model.fc.in_features
-    # model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-    num_ftrs = model.classifier[6].in_features
-    model.classifier[6] = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
 
+    if architecture == "inception":
+        model.aux_logits = False
+
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
     # model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)

@@ -1,8 +1,13 @@
 import numpy as np
 import torch
+
 from utils import sparser2coarser
+from tree import node_to_weights
+
 from anytree.util import commonancestors
 from anytree.search import find
+from anytree import PreOrderIter
+
 from sklearn.metrics import classification_report
 
 
@@ -80,16 +85,24 @@ def accuracy_coarser_classes(predicted, actual, coarser_labels, n_superclass, de
     return running_corrects
 
 
-def evaluate_regularization(model, n_class=5, n_superclass=20):
-    coarse_penalty = 0.0
-    fine_penalty = 0.0
-    for i in range(n_superclass):
-        coarse_penalty += (torch.linalg.norm(
-            torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
-    for i in range(n_class * n_superclass):
-        sc_index = 1 // 5
-        fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(
-            model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class]))) ** 2
+def evaluate_regularization(model, tree, all_leaves):
+    penalty = 0.0
+    for node in PreOrderIter(tree):
+        if node.name != "root":
+            leaves_node = node.leaves
+            leaves_parent = node.parent.leaves
+            beta_vec = model.fc.weight.data
 
-    print(coarse_penalty)
-    print(fine_penalty)
+            weights_node = node_to_weights(all_leaves, leaves_node, beta_vec)
+            weights_parent = node_to_weights(all_leaves, leaves_parent, beta_vec)
+            penalty += ((len(node.leaves)) ** 2) * ((torch.norm(weights_node - weights_parent)) ** 2)
+
+    # coarse_penalty = 0.0
+    # fine_penalty = 0.0
+    # for i in range(n_superclass):
+    #     coarse_penalty += (torch.linalg.norm(
+    #         torch.sum(model.fc.weight.data[i * n_class:i * n_class + n_class], dim=0))) ** 2
+    # for i in range(n_class * n_superclass):
+    #     sc_index = 1 // 5
+    #     fine_penalty += (torch.linalg.norm(model.fc.weight.data[i] - 1 / n_class * torch.sum(
+    #         model.fc.weight.data[sc_index * n_class:sc_index * n_class + n_class]))) ** 2
