@@ -111,6 +111,10 @@ if __name__ == "__main__":
 
     # Model
     model = models.inception_v3(pretrained=True)
+
+    if architecture == "inception":
+        model.aux_logits = False
+
     # Freeze layers
     if freeze:
         for param in model.parameters():
