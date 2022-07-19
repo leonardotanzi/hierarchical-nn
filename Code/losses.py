@@ -50,8 +50,8 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
                 if multigpu:
                     beta_vec = model.module.fc.weight.data
                 else:
-                    if architecture == "vgg":
-                        beta_vec = model.classifier[6].weight.data
+                    if architecture == "inception":
+                        beta_vec = model.fc.weight.data
                     elif architecture == "resnet":
                         beta_vec = model.fc.weight.data
                 weights_node = node_to_weights(all_leaves, leaves_node, beta_vec)
