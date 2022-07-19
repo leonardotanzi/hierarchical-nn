@@ -34,9 +34,11 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
-    regularization = True
-    name = "resnet-fairfaceraces-unfreezed"
+    hierarchical_loss = False
+    regularization = False
+    architecture = "resnet"
+
+    name = f"{architecture}-fairfaceraces-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -171,7 +173,7 @@ if __name__ == "__main__":
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
                                                                 model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes)
+                                                                sp_regularization, weight_decay, matrixes, architecture)
 
                     # Backward + optimize
                     if phase == "train":

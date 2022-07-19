@@ -29,7 +29,7 @@ if __name__ == "__main__":
     test_dir = "..//..//Dataset//cifar//test//"
     batch_size = 128
 
-    model_name = "..//..//Models//Mat_version_210622//resnet_cifar100_hloss_reg_lr0001_wd01_1on32_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//resnet_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"
 
     latex = False
     plot_cf = True

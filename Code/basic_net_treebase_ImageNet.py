@@ -41,7 +41,8 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    name = "inception-imagenet-doublemat-unfreezed"
+    architecture = "inception"
+    name = f"{architecture}-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
@@ -86,7 +87,8 @@ if __name__ == "__main__":
     # Log
     writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((224, 224))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((224, 224))]) \
+        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
