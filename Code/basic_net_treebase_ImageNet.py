@@ -120,10 +120,10 @@ if __name__ == "__main__":
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
     multigpu = False
-    # if torch.cuda.device_count() > 1:
-    #     multigpu = True
-    #     print("Let's use", torch.cuda.device_count(), "GPUs!")
-    #     model = nn.DataParallel(model)
+    if torch.cuda.device_count() > 1:
+        multigpu = True
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        model = nn.DataParallel(model)
     model.to(device)
 
     # Optimizer
