@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     architecture = "inception"
 
-    batch_size = 512 if architecture == "inception" else 1024
+    batch_size = 256 if architecture == "inception" else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
