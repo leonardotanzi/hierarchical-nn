@@ -33,7 +33,9 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
-    batch_size = 1024
+    architecture = "inception"
+
+    batch_size = 512 if architecture == "inception" else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -41,7 +43,6 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    architecture = "inception"
     name = f"{architecture}-imagenet-doublemat-unfreezed"
 
     run_scheduler = False
