@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     architecture = "inception"
 
-    batch_size = 256 if architecture == "inception" else 1024
+    batch_size = 512 if architecture == "inception" else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 32
+    reduction_factor = 1 if less_samples is False else 8
     freeze = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
@@ -98,8 +98,8 @@ if __name__ == "__main__":
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
-    with open("..//..//pkl//imagenet_dataset299.pkl", "wb") as f:
-        pickle.dump(dataset, f)
+    # with open("..//..//pkl//imagenet_dataset299.pkl", "wb") as f:
+    #     pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
+    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet50(pretrained=True)
 
     if architecture == "inception":
         model.aux_logits = False

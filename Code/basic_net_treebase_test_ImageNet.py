@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     architecture = "inception"
 
-    model_name = "..//..//Models//Server//inception-imagenet-doublemat-unfreezed_hloss_reg_lr0001_wd01_1on64_best.pth"
+    model_name = "..//..//Models//Server//inception-imagenet-doublemat-unfreezed_lr0001_wd01_1on32_best.pth"
 
     latex = False
     plot_cf = False
