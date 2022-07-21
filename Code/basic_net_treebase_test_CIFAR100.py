@@ -1,13 +1,12 @@
 import torch
-from torchvision.transforms import Compose, ToTensor, Normalize
+from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 import torchvision
 
 from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_coarser_classes, hierarchical_accuracy
-from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
+from evaluation import hierarchical_accuracy
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
 from tree import get_tree_CIFAR, get_all_labels_topdown, get_all_labels_downtop, return_matrixes_topdown, return_matrixes_downtop
@@ -27,9 +26,11 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     test_dir = "..//..//Dataset//cifar//test//"
-    batch_size = 128
+    batch_size = 64
 
-    model_name = "..//..//Models//Mat_version_210622//resnet_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"
+    architecture = "inception"
+
+    model_name = "..//..//Models//Mat_version_210622//inception_cifar100_hloss_reg_lr0001_wd01_1on32_best.pth"
 
     latex = False
     plot_cf = True
@@ -50,13 +51,17 @@ if __name__ == "__main__":
 
     lens = [len(n) for n in all_nodes]
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
+        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_size = len(test_loader)
 
-    model = models.resnet18(pretrained=True)
+    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
+    if architecture == "inception":
+        model.aux_logits = False
+
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
     model.load_state_dict(torch.load(model_name))
