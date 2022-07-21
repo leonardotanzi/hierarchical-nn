@@ -33,7 +33,7 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
-    architecture = "inception"
+    architecture = "resnet"
 
     batch_size = 512 if architecture == "inception" else 1024
     n_epochs = 50
@@ -49,8 +49,9 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 128
     freeze = False
+    multigpu = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet50(pretrained=True)
+    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
 
     if architecture == "inception":
         model.aux_logits = False
@@ -124,11 +125,12 @@ if __name__ == "__main__":
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
-    multigpu = False
-    # if torch.cuda.device_count() > 1:
-    #     multigpu = True
-    #     print("Let's use", torch.cuda.device_count(), "GPUs!")
-    #     model = nn.DataParallel(model)
+    if multigpu:
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            model = nn.DataParallel(model)
+        else:
+            multigpu = False
     model.to(device)
 
     # Optimizer
@@ -223,8 +225,6 @@ if __name__ == "__main__":
                 if phase == "val":
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
-                        # associated_medium_acc = epoch_acc_medium
-                        # associated_coarse_acc = epoch_acc_coarse
                         platoon = 0
                         best_model_name = model_name[:-4] + "_best.pth"
                         torch.save(model.state_dict(), best_model_name)

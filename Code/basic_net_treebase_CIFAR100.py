@@ -24,22 +24,22 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    batch_size = 128
+    batch_size = 64
     n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
-    regularization = True
-    architecture = "resnet"
+    hierarchical_loss = False
+    regularization = False
+    architecture = "inception"
     name = f"{architecture}_cifar100"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 128
     freeze = False
 
     # Classes and superclasses
@@ -83,7 +83,9 @@ if __name__ == "__main__":
     train_dir = "..//..//Dataset//cifar//train//"
     test_dir = "..//..//Dataset//cifar//test//"
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
+        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
     # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=all_leaves)
 
@@ -99,7 +101,11 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.resnet18(pretrained=True)
+    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet50(pretrained=True)
+
+    if architecture == "inception":
+        model.aux_logits = False
+
     # Freeze layers
     if freeze:
         for param in model.parameters():
