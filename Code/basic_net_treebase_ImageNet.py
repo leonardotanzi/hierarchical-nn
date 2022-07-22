@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     architecture = "resnet50"
 
-    batch_size = 512 if architecture in ["inception", "resnet50"] else 1024
+    batch_size = 256 if architecture in ["inception", "resnet50"] else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
