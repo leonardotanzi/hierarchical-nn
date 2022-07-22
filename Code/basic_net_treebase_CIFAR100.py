@@ -33,14 +33,14 @@ if __name__ == "__main__":
     hierarchical_loss = True
     regularization = True
     architecture = "inception"
-    name = f"{architecture}_cifar100"
+    name = f"{architecture}_cifar100_frozen"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 16
-    freeze = False
+    reduction_factor = 1 if less_samples is False else 64
+    freeze = True
 
     # Classes and superclasses
     tree = get_tree_CIFAR()
@@ -258,7 +258,7 @@ if __name__ == "__main__":
         print(f"Elapsed time {stop-start:.4f}")
 
     last_model_name = model_name[:-4] + "_last.pth"
-    torch.save(model.state_dict(), last_model_name)
+    # torch.save(model.state_dict(), last_model_name)
 
     writer.flush()
     writer.close()

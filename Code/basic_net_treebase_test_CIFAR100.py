@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     architecture = "inception"
 
-    model_name = "..//..//Models//Mat_version_210622//inception_cifar100_hloss_reg_lr0001_wd01_1on32_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//inception_cifar100_frozen_hloss_reg_lr0001_wd01_1on64_best.pth"
 
     latex = False
     plot_cf = True

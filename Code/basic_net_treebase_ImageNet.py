@@ -33,9 +33,9 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
-    architecture = "inception"
+    architecture = "resnet50"
 
-    batch_size = 256 if architecture == "inception" else 1024
+    batch_size = 512 if architecture in ["inception", "resnet50"] else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 128
     freeze = False
     multigpu = False
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
-        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+        if architecture in ["inception", "resnet50"] else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
@@ -111,10 +111,13 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
-
     if architecture == "inception":
+        model = models.inception_v3(pretrained=True)
         model.aux_logits = False
+    elif architecture == "resnet50":
+        model = models.resnet50(pretrained=True)
+    elif architecture == "resnet18":
+        model = models.resnet18(pretrained=True)
 
     # Freeze layers
     if freeze:
