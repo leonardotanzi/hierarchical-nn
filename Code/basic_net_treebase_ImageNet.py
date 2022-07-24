@@ -49,7 +49,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 64
+    reduction_factor = 1 if less_samples is False else 32
     freeze = False
     multigpu = False
 
@@ -277,7 +277,7 @@ if __name__ == "__main__":
         print(f"Elapsed time {stop-start:.4f}")
 
     last_model_name = model_name[:-4] + "_last.pth"
-    torch.save(model.state_dict(), last_model_name)
+    # torch.save(model.state_dict(), last_model_name)
 
     writer.flush()
     writer.close()

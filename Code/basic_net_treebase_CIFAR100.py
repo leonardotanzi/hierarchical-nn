@@ -31,7 +31,7 @@ if __name__ == "__main__":
     validation_split = 0.1
 
     hierarchical_loss = False
-    regularization = False
+    regularization = hierarchical_loss
     architecture = "inception"
     name = f"{architecture}_cifar100_frozen"
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 32
+    reduction_factor = 1 if less_samples is False else 8
     freeze = True
 
     # Classes and superclasses
