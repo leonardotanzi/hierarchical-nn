@@ -30,9 +30,9 @@ if __name__ == "__main__":
 
     batch_size = 32
 
-    architecture = "inception"
+    architecture = "resnet50"
 
-    model_name = "..//..//Models//Server//inception-imagenet-doublemat-unfreezed_hloss_reg_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//Server//resnet50-imagenet-doublemat-unfreezed_hloss_reg_lr0001_wd01_1on32_best.pth"
 
     latex = False
     plot_cf = False
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
         if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" else "..//..//pkl//imagenet_dataset.pkl"
+    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" or architecture == "resnet50" else "..//..//pkl//imagenet_dataset.pkl"
     with open(pkl, "rb") as f:
         dataset = pickle.load(f)
 
@@ -62,10 +62,13 @@ if __name__ == "__main__":
 
     dataset_size = len(test_loader)
 
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
-
     if architecture == "inception":
+        model = models.inception_v3(pretrained=True)
         model.aux_logits = False
+    elif architecture == "resnet50":
+        model = models.resnet50(pretrained=True)
+    elif architecture == "resnet18":
+        model = models.resnet18(pretrained=True)
 
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
@@ -89,7 +92,7 @@ if __name__ == "__main__":
         outputs = model(inputs)
 
         if graph:
-            make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("rnn_torchviz", format="png")
+            make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("net", format="png")
 
         h_acc += hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 
