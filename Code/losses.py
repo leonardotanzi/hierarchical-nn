@@ -46,7 +46,10 @@ def hierarchical_cc_treebased(predicted, actual, tree, lens, all_labels, all_lea
                 if multigpu:
                     beta_vec = model.module.fc.weight.data
                 else:
-                    beta_vec = model.fc.weight.data
+                    if architecture == "vit":
+                        beta_vec = model.classifier.weight.data
+                    else:
+                        beta_vec = model.fc.weight.data
                 weights_node = node_to_weights(all_leaves, leaves_node, beta_vec)
                 weights_parent = node_to_weights(all_leaves, leaves_parent, beta_vec)
                 penalty += ((len(node.leaves))**2)*((torch.norm(weights_node - weights_parent))**2)

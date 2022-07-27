@@ -19,6 +19,7 @@ import seaborn as sn
 import pandas as pd
 import random
 import plotly.express as px
+from transformers import ViTForImageClassification
 
 
 if __name__ == "__main__":
@@ -26,11 +27,11 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     test_dir = "..//..//Dataset//cifar//test//"
-    batch_size = 64
+    batch_size = 32
 
-    architecture = "inception"
+    architecture = "vit"
 
-    model_name = "..//..//Models//Mat_version_210622//inception_cifar100_frozen_hloss_reg_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//vit_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"
 
     latex = False
     plot_cf = True
@@ -51,19 +52,34 @@ if __name__ == "__main__":
 
     lens = [len(n) for n in all_nodes]
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
-        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    if architecture == "inceptionv3":
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))])
+    elif architecture == "resnet18":
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    else:
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((224, 224))])
 
     test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_size = len(test_loader)
 
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet18(pretrained=True)
     if architecture == "inception":
+        model = models.inception_v3(pretrained=True)
         model.aux_logits = False
+    elif architecture == "resnet50":
+        model = models.resnet50(pretrained=True)
+    elif architecture == "resnet18":
+        model = models.resnet18(pretrained=True)
+    elif architecture == "vit":
+        model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
 
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    if architecture == "vit":
+        num_ftrs = model.classifier.in_features
+        model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    else:
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()
@@ -80,7 +96,10 @@ if __name__ == "__main__":
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        outputs = model(inputs)
+        if architecture == "vit":
+            outputs = model(inputs).logits
+        else:
+            outputs = model(inputs)
 
         h_acc += hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 

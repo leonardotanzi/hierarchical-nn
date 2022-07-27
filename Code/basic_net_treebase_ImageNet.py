@@ -33,9 +33,9 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
-    architecture = "resnet50"
+    architecture = "inception"
 
-    batch_size = 128 if architecture in ["inception", "resnet50"] else 1024
+    batch_size = 512 if architecture in ["inception", "resnet50"] else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 1
     freeze = False
     multigpu = False
 

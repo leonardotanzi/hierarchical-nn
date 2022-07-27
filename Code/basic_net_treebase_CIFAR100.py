@@ -18,6 +18,7 @@ from torch.optim import lr_scheduler
 import timeit
 from anytree import LevelOrderGroupIter
 import random
+from transformers import ViTForImageClassification
 
 
 if __name__ == "__main__":
@@ -25,22 +26,23 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     batch_size = 64
-    n_epochs = 30
+    n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
+    hierarchical_loss = True
     regularization = hierarchical_loss
     architecture = "inception"
-    name = f"{architecture}_cifar100_frozen"
+    name = f"{architecture}_cifar100"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
-    freeze = True
+    reduction_factor = 1 if less_samples is False else 1
+    freeze = False
+    load = False
 
     # Classes and superclasses
     tree = get_tree_CIFAR()
@@ -83,8 +85,12 @@ if __name__ == "__main__":
     train_dir = "..//..//Dataset//cifar//train//"
     test_dir = "..//..//Dataset//cifar//test//"
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
-        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    if architecture == "inception":
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))])
+    elif architecture == "resnet18":
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    else:
+        transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((224, 224))])
 
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
     # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=all_leaves)
@@ -101,10 +107,15 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    model = models.inception_v3(pretrained=True) if architecture == "inception" else models.resnet50(pretrained=True)
-
     if architecture == "inception":
+        model = models.inception_v3(pretrained=True)
         model.aux_logits = False
+    elif architecture == "resnet50":
+        model = models.resnet50(pretrained=True)
+    elif architecture == "resnet18":
+        model = models.resnet18(pretrained=True)
+    elif architecture == "vit":
+        model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
 
     # Freeze layers
     if freeze:
@@ -112,9 +123,17 @@ if __name__ == "__main__":
             param.requires_grad = False
 
     # Add last layer
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    if architecture == "vit":
+        num_ftrs = model.classifier.in_features
+        model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    else:
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
     model.to(device)
+
+    if load:
+        model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//vit_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"))
+
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \
@@ -164,7 +183,11 @@ if __name__ == "__main__":
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
-                    outputs = model(inputs)
+
+                    if architecture == "vit":
+                        outputs = model(inputs).logits
+                    else:
+                        outputs = model(inputs)
 
                     # x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 
