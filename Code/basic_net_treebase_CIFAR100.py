@@ -26,15 +26,15 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     batch_size = 64
-    n_epochs = 50
+    n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
+    hierarchical_loss = False
     regularization = hierarchical_loss
-    architecture = "inception"
-    name = f"{architecture}_cifar100"
+    architecture = "vit"
+    name = "c" #f"{architecture}_cifar100"
 
     run_scheduler = False
     sp_regularization = False
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     model.to(device)
 
     if load:
-        model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//vit_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"))
+        model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//inception_cifar100_lr0001_wd01_1on1_best.pth"))
 
 
     # Optimizer

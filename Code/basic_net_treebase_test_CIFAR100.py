@@ -24,14 +24,16 @@ from transformers import ViTForImageClassification
 
 if __name__ == "__main__":
 
+     fgvc = torchvision.datasets.
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     test_dir = "..//..//Dataset//cifar//test//"
     batch_size = 32
 
-    architecture = "vit"
+    architecture = "inception"
 
-    model_name = "..//..//Models//Mat_version_210622//vit_cifar100_hloss_reg_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//inception_cifar100_hloss_reg_lr0001_wd01_1on1_best.pth"
 
     latex = False
     plot_cf = True
@@ -46,8 +48,8 @@ if __name__ == "__main__":
     all_labels_downtop = get_all_labels_downtop(tree)
     all_labels = [*all_labels_topdown, *all_labels_downtop]
 
-    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
+    matrixes_topdown = return_matrixes_topdown(tree, plot=True)
+    matrixes_downtop = return_matrixes_downtop(tree, plot=True)
     matrixes = [*matrixes_topdown, *matrixes_downtop]
 
     lens = [len(n) for n in all_nodes]

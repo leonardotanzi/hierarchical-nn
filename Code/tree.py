@@ -128,13 +128,13 @@ def get_tree_CIFAR():
                        'vehicles': {'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
                                     'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}}
 
-    # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
-    #                                   'fish': ['aquarium_fish', 'flatfish']},
-    #                    'people': ['baby', 'boy', 'girl', 'man'],
-    #                    'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
-    #                              'fruit and vegetables': ['apple', 'mushroom']
-    #                              }}
-    #
+    superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
+                                      'fish': ['aquarium_fish', 'flatfish']},
+                       'people': ['baby', 'boy', 'girl', 'man'],
+                       'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
+                                 'fruit and vegetables': ['apple', 'mushroom']
+                                 }}
+
     # # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
     root = Node("root")
     for key, value in superclass_dict.items():
