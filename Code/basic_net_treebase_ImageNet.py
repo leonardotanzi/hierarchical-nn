@@ -22,6 +22,7 @@ from anytree.exporter import DotExporter
 import random
 import pickle
 import argparse
+from transformers import ViTForImageClassification
 
 
 if __name__ == "__main__":
@@ -33,13 +34,14 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     args = vars(ap.parse_args())
 
-    architecture = "inception"
+    architecture = "vit"
 
-    batch_size = 256 if architecture in ["inception", "resnet50"] else 1024
+    batch_size = 256 if architecture in ["inception", "resnet50", "vit"] else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
+    image_size = 224 if architecture == "vit" else 299
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
@@ -49,7 +51,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 1
+    reduction_factor = 1 if less_samples is False else 8
     freeze = False
     multigpu = False
 
@@ -89,8 +91,8 @@ if __name__ == "__main__":
     # Log
     writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
-        if architecture in ["inception", "resnet50"] else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))]) \
+        if architecture in ["inception", "resnet50", "vit"] else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
@@ -118,6 +120,8 @@ if __name__ == "__main__":
         model = models.resnet50(pretrained=True)
     elif architecture == "resnet18":
         model = models.resnet18(pretrained=True)
+    elif architecture == "vit":
+        model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
 
     # Freeze layers
     if freeze:
@@ -125,8 +129,12 @@ if __name__ == "__main__":
             param.requires_grad = False
 
     # Add last layer
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    if architecture == "vit":
+        num_ftrs = model.classifier.in_features
+        model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    else:
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
     if multigpu:
         if torch.cuda.device_count() > 1:
@@ -186,7 +194,8 @@ if __name__ == "__main__":
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
-                    outputs = model(inputs)
+
+                    outputs = model(inputs).logit if model == "vit" else model(inputs)
 
                     #x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 

@@ -24,8 +24,6 @@ from transformers import ViTForImageClassification
 
 if __name__ == "__main__":
 
-     fgvc = torchvision.datasets.
-
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     test_dir = "..//..//Dataset//cifar//test//"
