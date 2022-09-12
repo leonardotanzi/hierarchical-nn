@@ -195,7 +195,7 @@ if __name__ == "__main__":
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
 
-                    outputs = model(inputs).logit if model == "vit" else model(inputs)
+                    outputs = model(inputs).logit if architecture == "vit" else model(inputs)
 
                     #x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 
