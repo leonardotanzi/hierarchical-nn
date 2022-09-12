@@ -203,7 +203,8 @@ if __name__ == "__main__":
 
                     loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
                                                                 model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes, multigpu)
+                                                                sp_regularization, weight_decay, matrixes, architecture,
+                                                                multigpu)
 
                     # Backward + optimize
                     if phase == "train":
