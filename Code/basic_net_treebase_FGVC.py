@@ -95,7 +95,7 @@ if __name__ == "__main__":
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
     # train_dataset = ImbalanceCIFAR100(root='./data', train=True, download=True, transform=transform, classes=all_leaves)
 
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True, reduction_factor_val=32)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False, reduction_factor_val=32)
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}

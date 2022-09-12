@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     architecture = "vit"
 
-    batch_size = 256 if architecture in ["inception", "resnet50", "vit"] else 1024
+    batch_size = 128 if architecture in ["inception", "resnet50", "vit"] else 1024
     n_epochs = 50
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
-    name = f"{architecture}-imagenet-doublemat-unfreezed"
+    name = f"{architecture}-imagenet-unfreezed"
 
     run_scheduler = False
     sp_regularization = False
