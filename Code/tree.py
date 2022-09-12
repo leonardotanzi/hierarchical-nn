@@ -82,6 +82,56 @@ def get_tree_from_file(file_tree):
     return root
 
 
+def write_file_tree_fgvc():
+    ds = {}
+    ds_man = {}
+    ds_fam = {}
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_manufacturer_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0] = [token1]
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_family_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0].append(token1)
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_variant_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0].append(token1)
+
+    print(ds)
+
+    with open("FGVCtree.txt", "w") as file:
+        written_man = []
+        for values in ds.values():
+            if values[0] not in written_man:
+                file.write(values[0] + "\n")
+                written_fam = []
+                written_mod = []
+                written_man.append(values[0])
+
+            if values[1] not in written_fam:
+                file.write("--" + values[1] + "\n")
+                written_mod = []
+                written_fam.append(values[1])
+
+            if values[2] not in written_mod:
+                file.write("----" + values[2] + "\n")
+                written_mod.append(values[2])
+
+
 def get_tree_FashionMNIST():
 
     superclass_dict = {'Up': {'Short': ['T-shirt/top', 'Pullover', 'Shirt'], 'Long': ['Dress', 'Coat']},
@@ -344,4 +394,3 @@ if __name__ == "__main__":
     # np.set_printoptions(threshold=sys.maxsize)
     # fig = px.imshow(matrix, text_auto=True, aspect="auto", x=all_nodes, y=all_nodes, width=2500, height=2500)
     # fig.show()
-

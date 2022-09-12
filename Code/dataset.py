@@ -286,6 +286,21 @@ def build_flat_fairface(phase):
                     f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}//{out_name}")
 
 
+def build_fgvc(set):
+
+    with open(f"..//..//Dataset//fgvc-aircraft-2013b//data//images_variant_{set}.txt", "r") as file:
+
+        for line in file.readlines():
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:-1]
+
+            if not os.path.exists(f"..//..//Dataset//Aircraft//{set}//{token1}"):
+                os.makedirs(f"..//..//Dataset//Aircraft//{set}//{token1}")
+
+            shutil.copy(f"..//..//Dataset//fgvc-aircraft-2013b//data//images//{token0}.jpg",
+                        f"..//..//Dataset//Aircraft//{set}//{token1}//{token0}.jpg")
+
+
 class CustomFairFace(Dataset):
 
     def __init__(self, root_dir, classes, transform=None):
@@ -364,7 +379,6 @@ class CustomFairFaceNoRaces(Dataset):
         return img, class_id, race
 
 
-
 if __name__ == "__main__":
     # transform = transforms.Compose(
     #     [transforms.ToTensor(),
@@ -373,5 +387,7 @@ if __name__ == "__main__":
     #                              download=True, transform=transform)
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
-    build_tree_fairface("train")
+    # build_tree_fairface("train")
+    build_fgvc("test")
+
     pass
