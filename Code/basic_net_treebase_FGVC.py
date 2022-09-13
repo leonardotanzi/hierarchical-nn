@@ -5,7 +5,7 @@ from torchvision import models
 import torch.nn as nn
 from torchvision import datasets
 
-from evaluation import accuracy_coarser_classes, hierarchical_accuracy
+from evaluation import accuracy_coarser_classes, hierarchical_error
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = False
+    hierarchical_loss = True
     regularization = hierarchical_loss
     architecture = "inception"
     name = f"{architecture}_fgvc"
@@ -40,12 +40,12 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = 1 if less_samples is False else 1
     freeze = False
     load = False
 
     # Classes and superclasses
-    tree = get_tree_from_file("..//..//Dataset//Aircraft//FGVCtree.txt")
+    tree = get_tree_from_file("..//..//Dataset//fgvc//tree.txt")
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("..//Logs//Mat_version_210622//", model_name.split("//")[-1].split(".")[0]))
 
     # Dataset
-    train_dir = "..//..//Dataset//Aircraft//train//"
-    test_dir = "..//..//Dataset//Aircraft//test//"
+    train_dir = "..//..//Dataset//fgvc//train//"
+    test_dir = "..//..//Dataset//fgvc//test//"
 
     if architecture == "inception":
         transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))])
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     model.to(device)
 
     if load:
-        model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//inception_cifar100_lr0001_wd01_1on1_best.pth"))
+        model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//inception_fgvc_hloss_reg_lr0001_wd01_1on1_best.pth"))
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \

@@ -5,6 +5,7 @@ from utils import sparser2coarser
 from tree import node_to_weights
 
 from anytree.util import commonancestors
+from anytree.walker import Walker
 from anytree.search import find
 from anytree import PreOrderIter
 
@@ -30,6 +31,28 @@ def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
         h_acc += depth / tree.height if n1 != n2 else 1
 
     return (h_acc / i) * 100
+
+
+def hierarchical_error(predicted, actual, tree, all_leaves, device):
+
+    predicted = torch.softmax(predicted, dim=1) + 1e6
+    predicted = torch.argmax(predicted, dim=1)
+
+    node_actual_name = np.asarray(all_leaves)[np.asarray(actual.cpu(), dtype=np.int64)]
+    node_pred_name = np.asarray(all_leaves)[np.asarray(predicted.cpu(), dtype=np.int64)]
+
+    h_error = 0.0
+
+    # read each couple of actual and predicted node, compute the ancestor, find the depth and compute metric
+    for i, (n1, n2) in enumerate(zip(node_actual_name, node_pred_name)):
+        node_actual = find(tree, lambda node: node.name == n1)
+        node_pred = find(tree, lambda node: node.name == n2)
+
+        ca = commonancestors(node_actual, node_pred)
+        depth = ca[-1].depth
+        h_error += 2**(-depth)
+
+    return h_error / i
 
 
 def compute_fair_accuracy(predicted, actual, races):

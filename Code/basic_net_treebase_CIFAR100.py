@@ -134,7 +134,6 @@ if __name__ == "__main__":
     if load:
         model.load_state_dict(torch.load("..//..//Models//Mat_version_210622//inception_cifar100_lr0001_wd01_1on1_best.pth"))
 
-
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \
         else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
