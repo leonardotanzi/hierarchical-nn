@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
 
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
 
     # with open("..//..//pkl//imagenet_dataset299.pkl", "wb") as f:
     #     pickle.dump(dataset, f)
