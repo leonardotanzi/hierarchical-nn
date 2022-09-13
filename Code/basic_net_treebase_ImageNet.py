@@ -32,12 +32,13 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
+    ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
     architecture = "vit"
 
     batch_size = 128 if architecture in ["inception", "resnet50", "vit"] else 1024
-    n_epochs = 50
+    n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = int(args["reduction"])
     freeze = False
     multigpu = False
 

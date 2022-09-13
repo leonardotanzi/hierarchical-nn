@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    architecture = "inception"
+    architecture = "vit"
     dataset = "fgvc"
     model_name = "..//..//Models//Mat_version_210622//inception_fgvc_lr0001_wd01_1on4_best.pth"
 

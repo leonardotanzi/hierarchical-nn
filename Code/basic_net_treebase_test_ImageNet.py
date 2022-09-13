@@ -6,7 +6,7 @@ import torch.nn as nn
 import torchvision
 
 from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_coarser_classes, hierarchical_accuracy
+from evaluation import accuracy_coarser_classes, hierarchical_error
 from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
 from dataset import exclude_classes, ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
@@ -22,6 +22,7 @@ import random
 import plotly.express as px
 import pickle
 from torchviz import make_dot
+from transformers import ViTForImageClassification
 
 
 if __name__ == "__main__":
@@ -30,9 +31,12 @@ if __name__ == "__main__":
 
     batch_size = 32
 
-    architecture = "resnet50"
+    architecture = "vit"
+    dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
-    model_name = "..//..//Models//Server//resnet50-imagenet-doublemat-unfreezed_lr0001_wd01_1on8_best.pth"
+    image_size = dict_architectures[architecture]
+
+    model_name = "..//..//Models//Server//vit-imagenet-unfreezed_lr0001_wd01_1on8_best.pth"
 
     latex = False
     plot_cf = False
@@ -51,10 +55,10 @@ if __name__ == "__main__":
 
     lens = [len(n) for n in all_nodes]
 
-    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((299, 299))]) \
-        if architecture == "inception" else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+    transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
     pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" or architecture == "resnet50" else "..//..//pkl//imagenet_dataset.pkl"
+
     with open(pkl, "rb") as f:
         dataset = pickle.load(f)
 
@@ -65,13 +69,17 @@ if __name__ == "__main__":
     if architecture == "inception":
         model = models.inception_v3(pretrained=True)
         model.aux_logits = False
-    elif architecture == "resnet50":
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    elif architecture == "resnet":
         model = models.resnet50(pretrained=True)
-    elif architecture == "resnet18":
-        model = models.resnet18(pretrained=True)
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
+    elif architecture == "vit":
+        model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
+        num_ftrs = model.classifier.in_features
+        model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
-    num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
     # model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
@@ -87,14 +95,19 @@ if __name__ == "__main__":
 
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
+        inputs = Resize(size=224)(inputs)
+
         labels = labels.to(device)
 
-        outputs = model(inputs)
+        if architecture == "vit":
+            outputs = model(inputs).logits
+        else:
+            outputs = model(inputs)
 
         if graph:
             make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("net", format="png")
 
-        h_acc += hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
+        h_acc += hierarchical_error(outputs, labels, tree, all_leaves, device)
 
         outputs = (torch.max(torch.exp(outputs), 1)[1]).data.cpu().numpy()
         y_pred.extend(outputs)
@@ -102,7 +115,7 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    print(f"Hierarchical_accuracy is {h_acc/dataset_size:.4f}")
+    print(f"Hierarchical_error is {h_acc/dataset_size:.4f}")
 
     ###############################################################################################################
 
