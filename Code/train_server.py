@@ -34,6 +34,7 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
     ap.add_argument("-d", "--dataset", required=True, help="fgvc, cifar, bones")
+    ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
     architecture = args["model"]
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 8
+    reduction_factor = args["reduction"]
     freeze = False
     multigpu = False
 
