@@ -57,7 +57,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = args["reduction"]
+    reduction_factor = int(args["reduction"])
     freeze = False
     multigpu = False
 
