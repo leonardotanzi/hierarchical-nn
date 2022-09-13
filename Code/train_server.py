@@ -32,10 +32,12 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
+    ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
+    ap.add_argument("-d", "--dataset", required=True, help="fgvc, cifar, bones")
     args = vars(ap.parse_args())
 
-    architecture = "inception"
-    dataset = "fgvc"  # fgvc, cifar, bones
+    architecture = args["model"]
+    dataset = args["dataset"]
 
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     lens = [len(set(n)) for n in all_labels]
 
     # Path
-    model_path = "..//..//Models//Server//"
+    model_path = f"..//..//Models//Server//{dataset}//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
@@ -93,7 +95,7 @@ if __name__ == "__main__":
     print(f"Model name: {model_name}")
 
     # Log
-    writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
+    writer = SummaryWriter(os.path.join(f"..//..//Logs//Server//{dataset}//", model_name.split("//")[-1].split(".")[0]))
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
