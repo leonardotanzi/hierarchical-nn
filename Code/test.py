@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     architecture = "vit"
     dataset = "fgvc"
-    model_name = "..//..//Models//Mat_version_210622//inception_fgvc_lr0001_wd01_1on4_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//vit-fgvc//vit-fgvc_lr0001_wd01_1on16_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 

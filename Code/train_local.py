@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    batch_size = 64
+    batch_size = 32
     n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -34,8 +34,8 @@ if __name__ == "__main__":
     hierarchical_loss = True
     regularization = hierarchical_loss
 
-    architecture = "inception"
-    dataset = "fgvc"  # fgvc, cifar, imagenet, bones
+    architecture = "vit"
+    dataset = "cifar"  # fgvc, cifar, imagenet, bones
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
     image_size = dict_architectures[architecture]
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
-    reduction_factor = 1 if less_samples is False else 1
+    reduction_factor = 1 if less_samples is False else 16
     freeze = False
     load = False
 

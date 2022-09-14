@@ -80,7 +80,7 @@ if __name__ == "__main__":
     lens = [len(set(n)) for n in all_labels]
 
     # Path
-    model_path = f"..//..//Models//Server//{dataset}//"
+    model_path = f"..//..//Models//Server//{architecture}-{dataset}//"
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")

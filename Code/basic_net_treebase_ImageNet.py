@@ -109,6 +109,9 @@ if __name__ == "__main__":
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
 
+    print(
+        f"Using {dataset_sizes['train']} samples for training, {dataset_sizes['train'] / len(all_leaves)} for each class")
+
     # Check lr_ratio
     lr_ratio = 1 / len(train_loader)
     print(f"LR should be around {lr_ratio:.4f}")
