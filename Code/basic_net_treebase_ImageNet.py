@@ -120,7 +120,7 @@ if __name__ == "__main__":
     if architecture == "inception":
         model = models.inception_v3(pretrained=True)
         model.aux_logits = False
-    elif architecture == "resnet50":
+    elif architecture == "resnet":
         model = models.resnet50(pretrained=True)
     elif architecture == "resnet18":
         model = models.resnet18(pretrained=True)
