@@ -1,17 +1,12 @@
 from torchvision import datasets
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import Subset
 import os
 import torchvision
 import numpy as np
-import shutil
-import pickle
 import cv2
-from PIL import Image
-import pandas
 import shutil
-import torch
-import glob
+
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
@@ -71,9 +66,6 @@ class ImbalanceCIFAR10(torchvision.datasets.CIFAR10):
 
 
 class ImbalanceCIFAR100(ImbalanceCIFAR10):
-    """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
-    This is a subclass of the `CIFAR10` Dataset.
-    """
     base_folder = 'cifar-100-python'
     url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
     filename = "cifar-100-python.tar.gz"
@@ -138,43 +130,6 @@ def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False, 
     datasets["train"] = Subset(dataset, train_idx)
     datasets["val"] = Subset(dataset, val_idx)
     return datasets
-
-
-def exclude_classes(superclasses_names):
-    superclass_dict = {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-                       'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
-                       'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-                       'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
-                       'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-                       'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-                       'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe'],
-                       'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-                       'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-                       'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-                       'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea'],
-                       'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-                       'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-                       'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm'],
-                       'people': ['baby', 'boy', 'girl', 'man', 'woman'],
-                       'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-                       'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel'],
-                       'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree'],
-                       'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-                       'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}
-
-    excluded = []
-    coarse_labels = []
-
-    for i, superclass in enumerate(superclass_dict):
-        if superclass not in superclasses_names:
-            for fine_class in superclass_dict[superclass]:
-                excluded.append(fine_class)
-
-    for i in range(len(superclasses_names)):
-        tmp = [i] * 5
-        coarse_labels.extend(tmp)
-
-    return excluded, coarse_labels
 
 
 def build_mapping_imagenet():
@@ -246,46 +201,6 @@ def build_imagenet():
             cv2.imwrite(out_name, img)
 
 
-def build_tree_fairface(phase):
-    df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_{phase}.csv")
-    print(df['age'].unique())
-
-    for index, row in df.iterrows():
-        file = row["file"]
-        age = row["age"]
-        if age == "more than 70":
-            age = "70-99"
-        race = row["race"]
-        race = race.replace(" ", "")
-        race = race.replace("_", "")
-
-        name = "_".join([race, age])
-        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}"):
-            os.makedirs(f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}")
-
-        out_name = file.split("/")[1]
-        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}", f"..//..//dataset//FairFace//FairFace_leaves_races//{phase}//{name}//{out_name}")
-
-
-def build_flat_fairface(phase):
-    df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_{phase}.csv")
-    print(df['age'].unique())
-
-    for i, (index, row) in enumerate(df.iterrows()):
-        file = row["file"]
-        age = row["age"]
-        if age == "more than 70":
-            age = "70-99"
-
-        name = age
-        if not os.path.exists(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}"):
-            os.makedirs(f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}")
-
-        out_name = file.split("/")[1]
-        shutil.copy(f"..//..//dataset//FairFace//FairFaceImages//{file}",
-                    f"..//..//dataset//FairFace//FairFace_flat//{phase}//{name}//{out_name}")
-
-
 def build_fgvc(set):
 
     with open(f"..//..//Dataset//fgvc-aircraft-2013b//data//images_variant_{set}.txt", "r") as file:
@@ -301,93 +216,6 @@ def build_fgvc(set):
                         f"..//..//Dataset//Aircraft//{set}//{token1}//{token0}.jpg")
 
 
-class CustomFairFace(Dataset):
-
-    def __init__(self, root_dir, classes, transform=None):
-
-        df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_val.csv")
-
-        self.root_dir = root_dir
-        self.transform = transform
-        self.classes = classes
-        file_list = glob.glob(self.root_dir + "*")
-        print(file_list)
-        self.data = []
-        for class_path in file_list:
-            class_name = class_path.split("\\")[-1]
-            for img_path in glob.glob(class_path + "\\*.jpg"):
-                key = "val/" + img_path.split("\\")[-1]
-                race = df[df['file'] == key].race.values[0]
-                race = race.replace(" ", "")
-                race = race.replace("_", "")
-                self.data.append([img_path, class_name, race])
-
-        print(self.data)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        img_path, class_name, race = self.data[idx]
-        img = cv2.imread(img_path)
-
-        class_id = self.classes.index(class_name)
-
-        if self.transform:
-            img = self.transform(img)
-
-        class_id = torch.tensor(class_id)
-        return img, class_id, race
-
-
-class CustomFairFaceNoRaces(Dataset):
-
-    def __init__(self, root_dir, classes, transform=None):
-
-        df = pandas.read_csv(f"..//..//dataset//FairFace//fairface_label_val.csv")
-
-        self.root_dir = root_dir
-        self.transform = transform
-        self.classes = classes
-        file_list = glob.glob(self.root_dir + "*")
-        print(file_list)
-        self.data = []
-        for class_path in file_list:
-            class_name = class_path.split("\\")[-1]
-            for img_path in glob.glob(class_path + "\\*.jpg"):
-                key = "val/" + img_path.split("\\")[-1]
-                race = df[df['file'] == key].race.values[0]
-                race = race.replace(" ", "")
-                race = race.replace("_", "")
-                self.data.append([img_path, class_name, race])
-
-        print(self.data)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        img_path, class_name, race = self.data[idx]
-        img = cv2.imread(img_path)
-
-        class_id = self.classes.index(class_name)
-
-        if self.transform:
-            img = self.transform(img)
-
-        class_id = torch.tensor(class_id)
-        return img, class_id, race
-
 
 if __name__ == "__main__":
-    # transform = transforms.Compose(
-    #     [transforms.ToTensor(),
-    #      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    # trainset = IMBALANCECIFAR100(root='./data', train=True,
-    #                              download=True, transform=transform)
-    # trainloader = iter(trainset)
-    # data, label = next(trainloader)
-    # build_tree_fairface("train")
-    build_fgvc("test")
-
     pass

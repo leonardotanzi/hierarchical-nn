@@ -1,20 +1,8 @@
-from anytree import Node, RenderTree, LevelOrderGroupIter, NodeMixin, LevelOrderIter
+from anytree import Node, RenderTree
 from anytree.search import find
 import torch
 import numpy as np
-import sys
 import plotly.express as px
-from itertools import cycle, islice, dropwhile
-
-
-class MyNode(Node):  # Add Node feature
-    def __init__(self, name, prob_value, parent=None, children=None):
-        super(MyNode, self).__init__(name, parent=None, children=None)
-        self.name = name
-        self.parent = parent
-        self.loss_value = prob_value
-        if children:  # set children only if given
-            self.children = children
 
 
 def node_to_weights(classes, node, beta):
@@ -377,21 +365,3 @@ def return_matrixes_topdown(tree, plot=False):
 
 if __name__ == "__main__":
     pass
-    # tree = get_tree_CIFAR()
-    # all_nodes = [node.name for node in LevelOrderIter(tree)][1:]
-    # matrix = np.zeros((len(all_nodes), len(all_nodes)), dtype=int)
-    #
-    # for i, node_name in enumerate(all_nodes):
-    #     actual_node = find(tree, lambda node: node.name == node_name)
-    #     childrens = actual_node.children
-    #     childrens_name = []
-    #     for children in childrens:
-    #         childrens_name.append(children.name)
-    #     for children_name in childrens_name:
-    #         index = all_nodes.index(children_name)
-    #         matrix[index][i] = 1
-    #
-    # np.set_printoptions(threshold=sys.maxsize)
-    # fig = px.imshow(matrix, text_auto=True, aspect="auto", x=all_nodes, y=all_nodes, width=2500, height=2500)
-    # fig.show()
-    get_tree_CIFAR()

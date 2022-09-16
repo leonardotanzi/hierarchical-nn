@@ -7,7 +7,7 @@ import torchvision
 
 from inout import to_latex_heatmap, save_list
 from evaluation import hierarchical_error
-from dataset import exclude_classes, ImageFolderNotAlphabetic
+from dataset import ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
 from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
     return_matrixes_topdown, return_matrixes_downtop
@@ -27,9 +27,13 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    a = np.array([0.55, 0.75, 0.77, 0.62, 0.71, 0.22, 0.93])
+    print(np.mean(a))
+    print(np.std(a))
+
     architecture = "vit"
-    dataset = "fgvc"
-    model_name = "..//..//Models//Mat_version_210622//vit-fgvc//vit-fgvc_lr0001_wd01_1on16_best.pth"
+    dataset = "bones"
+    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_lr0001_wd01_1on1_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 

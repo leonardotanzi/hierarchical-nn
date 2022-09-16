@@ -7,8 +7,7 @@ import torchvision
 
 from inout import to_latex_heatmap, save_list
 from evaluation import accuracy_coarser_classes, hierarchical_error
-from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser, get_medium_labels, get_coarse_labels
-from dataset import exclude_classes, ImageFolderNotAlphabetic
+from utils import get_superclasses, get_classes, get_hyperclasses, sparser2coarser
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
 from tree import get_tree_from_file, get_all_labels_downtop, get_all_labels_topdown
 
@@ -36,7 +35,7 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture]
 
-    model_name = "..//..//Models//Server//vit-imagenet-unfreezed_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//vit-imagenet//vit-imagenet_lr0001_wd01_1on32_best.pth"
 
     latex = False
     plot_cf = False
