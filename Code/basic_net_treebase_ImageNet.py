@@ -35,9 +35,9 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
-    architecture = "vit"
+    architecture = "resnet"
 
-    batch_size = 128 if architecture in ["inception", "resnet50", "vit"] else 1024
+    batch_size = 256 if architecture in ["inception", "resnet", "vit"] else 1024
     n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
-    # with open("..//..//pkl//imagenet_dataset299.pkl", "wb") as f:
+    # with open("..//..//pkl//imagenet_dataset224.pkl", "wb") as f:
     #     pickle.dump(dataset, f)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)

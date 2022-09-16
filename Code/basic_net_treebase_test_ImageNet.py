@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture]
 
-    model_name = "..//..//Models//Mat_version_210622//vit-imagenet//vit-imagenet_lr0001_wd01_1on32_best.pth"
+    model_name = "..//..//Models//Mat_version_210622//vit-imagenet//vit-imagenet_hloss_reg_lr0001_wd01_1on128_best.pth"
 
     latex = False
     plot_cf = False
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" or architecture == "resnet50" else "..//..//pkl//imagenet_dataset.pkl"
+    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" or architecture == "resnet" else "..//..//pkl//imagenet_dataset.pkl"
 
     with open(pkl, "rb") as f:
         dataset = pickle.load(f)
@@ -94,7 +94,8 @@ if __name__ == "__main__":
 
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
-        inputs = Resize(size=224)(inputs)
+        if architecture == "vit":
+            inputs = Resize(size=224)(inputs)
 
         labels = labels.to(device)
 
