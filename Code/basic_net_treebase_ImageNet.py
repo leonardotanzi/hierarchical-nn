@@ -35,7 +35,7 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
-    architecture = "resnet"
+    architecture = "inception"
 
     batch_size = 256 if architecture in ["inception", "resnet", "vit"] else 1024
     n_epochs = 30

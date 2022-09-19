@@ -99,10 +99,7 @@ if __name__ == "__main__":
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        if architecture == "vit":
-            outputs = model(inputs).logits
-        else:
-            outputs = model(inputs)
+        outputs = model(inputs).logits if architecture == "vit" else model(inputs)
 
         h_err += hierarchical_error(outputs, labels, tree, all_leaves, device)
 
