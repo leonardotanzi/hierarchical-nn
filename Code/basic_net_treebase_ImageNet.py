@@ -35,7 +35,7 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
-    architecture = "inception"
+    architecture = "resnet"
 
     batch_size = 256 if architecture in ["inception", "resnet", "vit"] else 1024
     n_epochs = 30
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("..//..//Logs//Server//", model_name.split("//")[-1].split(".")[0]))
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))]) \
-        if architecture in ["inception", "resnet50", "vit"] else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+        if architecture in ["inception", "resnet", "vit"] else Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
     train_dir = "..//..//Dataset//ImageNet64//Imagenet_leaves"
 
