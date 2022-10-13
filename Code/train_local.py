@@ -8,8 +8,8 @@ from torchvision import datasets
 from evaluation import accuracy_coarser_classes, hierarchical_error
 from losses import hierarchical_cc_treebased
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
-from utils import decimal_to_string
-from tree import get_tree_from_file, get_all_labels_downtop, get_all_labels_topdown, return_matrixes_downtop, return_matrixes_topdown
+from utils import decimal_to_string, seed_everything
+from tree import get_tree_from_file, get_tree_limited_CIFAR, get_all_labels_downtop, get_all_labels_topdown, return_matrixes_downtop, return_matrixes_topdown
 
 import numpy as np
 import os
@@ -19,40 +19,50 @@ import timeit
 from anytree import LevelOrderGroupIter
 import random
 from transformers import ViTForImageClassification
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+import itertools
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    seed_everything(0)
 
-    batch_size = 32
+    batch_size = 64
     n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
 
-    hierarchical_loss = True
+    hierarchical_loss = False
     regularization = hierarchical_loss
 
-    architecture = "vit"
+    architecture = "inception"
     dataset = "cifar"  # fgvc, cifar, imagenet, bones
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
     image_size = dict_architectures[architecture]
 
-    name = f"{architecture}_{dataset}"
+    name = f"{architecture}-{dataset}-limited"
 
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
+
     reduction_factor = 1 if less_samples is False else 16
+    red_factor_val = 1
+
     freeze = False
     load = False
 
     # Classes and superclasses
-    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
-    tree = get_tree_from_file(tree_file)
+    # tree_file = f"..//..//Dataset//{dataset}//tree.txt"
+    # tree = get_tree_from_file(tree_file)
+
+    tree = get_tree_limited_CIFAR()
+
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
@@ -63,11 +73,15 @@ if __name__ == "__main__":
     all_labels_downtop = get_all_labels_downtop(tree)
     all_labels = [*all_labels_topdown, *all_labels_downtop]
 
+    # all_labels = get_all_labels_topdown(tree)
+
     matrixes_topdown = return_matrixes_topdown(tree, plot=False)
     matrixes_downtop = return_matrixes_downtop(tree, plot=False)
     matrixes = [*matrixes_topdown, *matrixes_downtop]
 
-    lens = [len(n) for n in all_nodes]
+#   matrixes = return_matrixes_topdown(tree, plot=False)
+
+    lens = [len(set(n)) for n in all_nodes]
 
     # Path
     model_path = "..//..//Models//Mat_version_210622//"
@@ -95,8 +109,7 @@ if __name__ == "__main__":
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False, reduction_factor_val=32)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False, reduction_factor_val=red_factor_val)
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
     dataset_sizes = {x: len(dataset[x]) for x in ["train", "val"]}
@@ -181,10 +194,7 @@ if __name__ == "__main__":
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
 
-                    if architecture == "vit":
-                        outputs = model(inputs).logits
-                    else:
-                        outputs = model(inputs)
+                    outputs = model(inputs).logits if architecture == "vit" else model(inputs)
 
                     # x = hierarchical_accuracy(outputs, labels, tree, all_leaves, device)
 

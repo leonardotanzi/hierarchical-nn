@@ -6,11 +6,12 @@ import torch.nn as nn
 import torchvision
 
 from inout import to_latex_heatmap, save_list
+from utils import seed_everything
 from evaluation import hierarchical_error
 from dataset import ImageFolderNotAlphabetic
 from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
 from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
-    return_matrixes_topdown, return_matrixes_downtop
+    return_matrixes_topdown, return_matrixes_downtop, get_tree_limited_CIFAR
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -26,14 +27,11 @@ from transformers import ViTForImageClassification
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    seed_everything(0)
 
-    a = np.array([0.55, 0.75, 0.77, 0.62, 0.71, 0.22, 0.93])
-    print(np.mean(a))
-    print(np.std(a))
-
-    architecture = "vit"
-    dataset = "bones"
-    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_lr0001_wd01_1on1_best.pth"
+    architecture = "inception"
+    dataset = "cifar"
+    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_hloss_reg_lr0001_wd01_1on128_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
@@ -48,6 +46,8 @@ if __name__ == "__main__":
     plot_cf = True
 
     tree = get_tree_from_file(tree_file)
+    # tree = get_tree_limited_CIFAR()
+
     all_leaves = [leaf.name for leaf in tree.leaves]
 
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]

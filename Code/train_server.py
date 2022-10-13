@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture][0]
     batch_size = dict_architectures[architecture][1]
-    n_epochs = 60
+    n_epochs = 30
     learning_rate = 0.001
     scheduler_step_size = 40
     validation_split = 0.1
@@ -105,7 +105,6 @@ if __name__ == "__main__":
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
 
     # with open("..//..//pkl//imagenet_dataset299.pkl", "wb") as f:
@@ -145,6 +144,7 @@ if __name__ == "__main__":
             model = nn.DataParallel(model)
         else:
             multigpu = False
+
     model.to(device)
 
     # Optimizer
