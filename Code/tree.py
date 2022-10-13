@@ -140,38 +140,38 @@ def get_tree_FashionMNIST():
     return root
 
 
-def get_tree_CIFAR():
+def get_tree_limited_CIFAR():
 
-    superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-                                    'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']},
-                       'land animal': {'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-                                       'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-                                       'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-                                       'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-                                       'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel']},
+    # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+    #                                 'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']},
+    #                    'land animal': {'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+    #                                    'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+    #                                    'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+    #                                    'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+    #                                    'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel']},
+    #
+    #                    'insect and invertebrates': {'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+    #                                                 'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm']},
+    #
+    #                    'flora': {'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+    #                              'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+    #                              'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree']},
+    #
+    #                    'object': {'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
+    #                               'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+    #                               'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe']},
+    #                    'outdoor scenes': {'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+    #                                       'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea']},
+    #                    'people': ['baby', 'boy', 'girl', 'man', 'woman'],
+    #                    'vehicles': {'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+    #                                 'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}}
 
-                       'insect and invertebrates': {'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-                                                    'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm']},
-
-                       'flora': {'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-                                 'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-                                 'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree']},
-
-                       'object': {'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
-                                  'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-                                  'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe']},
-                       'outdoor scenes': {'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-                                          'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea']},
-                       'people': ['baby', 'boy', 'girl', 'man', 'woman'],
-                       'vehicles': {'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-                                    'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}}
-
-    # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
-    #                                   'fish': ['aquarium_fish', 'flatfish']},
-    #                    'people': ['baby', 'boy', 'girl', 'man'],
-    #                    'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
-    #                              'fruit and vegetables': ['apple', 'mushroom']
-    #                              }}
+    superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
+                                      'fish': ['aquarium_fish', 'flatfish']},
+                       'people': ['baby', 'boy', 'girl', 'man'],
+                       'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
+                                 'fruit and vegetables': ['apple', 'mushroom']
+                                 }}
 
     # # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
     root = Node("root")
@@ -307,7 +307,7 @@ def return_matrixes_downtop(tree, plot=False):
         matrixes.append(matrix)
 
         if plot:
-            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 2, height=2500 // 2)
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 6, height=2500 // 6)
             fig.update_xaxes(side="top")
             fig.show()
 
@@ -356,7 +356,7 @@ def return_matrixes_topdown(tree, plot=False):
         matrixes.append(matrix)
 
         if plot:
-            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 2, height=2500 // 2)
+            fig = px.imshow(matrix, text_auto=True, aspect="auto", x=node_layer, y=all_leaves, width=2500 // 6, height=2500 // 6)
             fig.update_xaxes(side="top")
             fig.show()
 
@@ -364,4 +364,5 @@ def return_matrixes_topdown(tree, plot=False):
 
 
 if __name__ == "__main__":
-    pass
+    tree = get_tree_from_file("..\\..\\Dataset\\tree_paper.txt")
+    return_matrixes_topdown(tree, plot=False)
