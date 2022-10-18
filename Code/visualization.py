@@ -118,73 +118,73 @@ def show_tables_acc():
 
     # CIFAR
     # nsamples = [3.5, 7, 14, 28, 56]
-    # # 1, CE
-    # resnet_fine_CE = [1 - i for i in [0.20, 0.28, 0.37, 0.39, 0.45]]
-    # resnet_hier_CE = [1 - i for i in [0.20, 0.29, 0.38, 0.47, 0.48]]
-    # inception_fine_CE = [1 - i for i in [0.16, 0.22, 0.27, 0.31, 0.39]]
-    # inception_hier_CE = [1 - i for i in [0.18, 0.25, 0.32, 0.47, 0.50]]
-    # vit_fine_CE = [1 - i for i in [0.04, 0.06, 0.06, 0.12, 0.15]]
-    # vit_hier_CE = [1 - i for i in [0.03, 0.07, 0.11, 0.13, 0.20]]
-    # # 2, HCE
-    # resnet_fine_HCE = [0.67, 0.62, 0.56, 0.56, 0.51]
-    # resnet_hier_HCE = [0.65, 0.57, 0.51, 0.47, 0.47]
-    # inception_fine_HCE = [0.68, 0.65, 0.63, 0.60, 0.56]
-    # inception_hier_HCE = [0.64, 0.61, 0.55, 0.47, 0.46]
-    # vit_fine_HCE = [0.86, 0.85, 0.84, 0.78, 0.77]
-    # vit_hier_HCE = [0.84, 0.80, 0.76, 0.75, 0.67]
+    # # 1, MC
+    # resnet_fine_MC = [1 - i for i in [0.20, 0.28, 0.37, 0.39, 0.45]]
+    # resnet_hier_MC = [1 - i for i in [0.20, 0.29, 0.38, 0.47, 0.48]]
+    # inception_fine_MC = [1 - i for i in [0.16, 0.22, 0.27, 0.31, 0.39]]
+    # inception_hier_MC = [1 - i for i in [0.18, 0.25, 0.32, 0.47, 0.50]]
+    # vit_fine_MC = [1 - i for i in [0.04, 0.06, 0.06, 0.12, 0.15]]
+    # vit_hier_MC = [1 - i for i in [0.03, 0.07, 0.11, 0.13, 0.20]]
+    # # 2, HMC
+    # resnet_fine_HMC = [0.67, 0.62, 0.56, 0.56, 0.51]
+    # resnet_hier_HMC = [0.65, 0.57, 0.51, 0.47, 0.47]
+    # inception_fine_HMC = [0.68, 0.65, 0.63, 0.60, 0.56]
+    # inception_hier_HMC = [0.64, 0.61, 0.55, 0.47, 0.46]
+    # vit_fine_HMC = [0.86, 0.85, 0.84, 0.78, 0.77]
+    # vit_hier_HMC = [0.84, 0.80, 0.76, 0.75, 0.67]
 
     # imagenet
     # nsamples = [9.5, 19, 37, 74, 148]
-    # # 1, CE
-    # resnet_fine_CE = [1 - i for i in [0.04, 0.06, 0.11, 0.14, 0.19]]
-    # resnet_hier_CE = [1 - i for i in [0.05, 0.08, 0.14, 0.23, 0.36]]
-    # inception_fine_CE = [1 - i for i in [0.03, 0.05, 0.13, 0.20, 0.30]]
-    # inception_hier_CE = [1 - i for i in [0.20, 0.31, 0.33, 0.36, 0.47]]
-    # vit_fine_CE = [1 - i for i in [0.02, 0.03, 0.05, 0.09, 0.11]]
-    # vit_hier_CE = [1 - i for i in [0.06, 0.08, 0.14, 0.31, 0.30]]
-    # # 2, HCE
-    # resnet_fine_HCE = [0.10, 0.11, 0.09, 0.10, 0.09]
-    # resnet_hier_HCE = [0.08, 0.08, 0.06, 0.06, 0.04]
-    # inception_fine_HCE = [0.11, 0.08, 0.07, 0.06, 0.06]
-    # inception_hier_HCE = [0.06, 0.05, 0.04, 0.04, 0.04]
-    # vit_fine_HCE = [0.28, 0.17, 0.14, 0.12, 0.12]
-    # vit_hier_HCE = [0.08, 0.07, 0.07, 0.05, 0.05]
+    # # 1, MC
+    # resnet_fine_MC = [1 - i for i in [0.04, 0.06, 0.11, 0.14, 0.19]]
+    # resnet_hier_MC = [1 - i for i in [0.05, 0.08, 0.14, 0.23, 0.36]]
+    # inception_fine_MC = [1 - i for i in [0.03, 0.05, 0.13, 0.20, 0.30]]
+    # inception_hier_MC = [1 - i for i in [0.20, 0.31, 0.33, 0.36, 0.47]]
+    # vit_fine_MC = [1 - i for i in [0.02, 0.03, 0.05, 0.09, 0.11]]
+    # vit_hier_MC = [1 - i for i in [0.06, 0.08, 0.14, 0.31, 0.30]]
+    # # 2, HMC
+    # resnet_fine_HMC = [0.10, 0.11, 0.09, 0.10, 0.09]
+    # resnet_hier_HMC = [0.08, 0.08, 0.06, 0.06, 0.04]
+    # inception_fine_HMC = [0.11, 0.08, 0.07, 0.06, 0.06]
+    # inception_hier_HMC = [0.06, 0.05, 0.04, 0.04, 0.04]
+    # vit_fine_HMC = [0.28, 0.17, 0.14, 0.12, 0.12]
+    # vit_hier_HMC = [0.08, 0.07, 0.07, 0.05, 0.05]
 
     # aircraft
     nsamples = [3.5, 7.5, 15, 30, 60]
     # 1, CE
-    resnet_fine_CE = [1 - i for i in [0.10, 0.22, 0.42, 0.46, 0.61]]
-    resnet_hier_CE = [1 - i for i in [0.10, 0.25, 0.31, 0.55, 0.76]]
-    inception_fine_CE = [1 - i for i in [0.16, 0.28, 0.40, 0.53, 0.63]]
-    inception_hier_CE = [1 - i for i in [0.18, 0.32, 0.53, 0.74, 0.78]]
-    vit_fine_CE = [1 - i for i in [0.03, 0.03, 0.03, 0.03, 0.04]]
-    vit_hier_CE = [1 - i for i in [0.05, 0.05, 0.05, 0.13, 0.19]]
-    # 2, HCE
-    resnet_fine_HCE = [0.88, 0.81, 0.69, 0.67, 0.61]
-    resnet_hier_HCE = [0.86, 0.75, 0.73, 0.62, 0.53]
-    inception_fine_HCE = [0.86, 0.76, 0.68, 0.63, 0.60]
-    inception_hier_HCE = [0.78, 0.71, 0.61, 0.53, 0.53]
-    vit_fine_HCE = [0.96, 0.97, 0.97, 0.93, 0.93]
-    vit_hier_HCE = [0.95, 0.95, 0.95, 0.88, 0.84]
+    resnet_fine_MC = [1 - i for i in [0.10, 0.22, 0.42, 0.46, 0.61]]
+    resnet_hier_MC = [1 - i for i in [0.10, 0.25, 0.31, 0.55, 0.76]]
+    inception_fine_MC = [1 - i for i in [0.16, 0.28, 0.40, 0.53, 0.63]]
+    inception_hier_MC = [1 - i for i in [0.18, 0.32, 0.53, 0.74, 0.78]]
+    vit_fine_MC = [1 - i for i in [0.03, 0.03, 0.03, 0.03, 0.04]]
+    vit_hier_MC = [1 - i for i in [0.05, 0.05, 0.05, 0.13, 0.19]]
+    # 2, HMC
+    resnet_fine_HMC = [0.88, 0.81, 0.69, 0.67, 0.61]
+    resnet_hier_HMC = [0.86, 0.75, 0.73, 0.62, 0.53]
+    inception_fine_HMC = [0.86, 0.76, 0.68, 0.63, 0.60]
+    inception_hier_HMC = [0.78, 0.71, 0.61, 0.53, 0.53]
+    vit_fine_HMC = [0.96, 0.97, 0.97, 0.93, 0.93]
+    vit_hier_HMC = [0.95, 0.95, 0.95, 0.88, 0.84]
 
     fig = go.Figure()
     # Create and style traces
-    fig.add_trace(go.Scatter(x=nsamples, y=resnet_fine_CE, name='ResNet Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_fine_MC, name='ResNet Baseline',
                              line=dict(color='firebrick', width=4)))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=resnet_hier_CE, name='ResNet Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_hier_MC, name='ResNet Hierarchy',
                              line=dict(color='royalblue', width=4)))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=inception_fine_CE, name='Inception Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_fine_MC, name='Inception Baseline',
                              line=dict(color='firebrick', width=4, dash='dash')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=inception_hier_CE, name='Inception Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_hier_MC, name='Inception Hierarchy',
                              line=dict(color='royalblue', width=4, dash='dash')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=vit_fine_CE, name='ViT Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_fine_MC, name='ViT Baseline',
                              line=dict(color='firebrick', width=4, dash='dot')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=vit_hier_CE, name='ViT Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_hier_MC, name='ViT Hierarchy',
                              line=dict(color='royalblue', width=4, dash='dot')))
 
     # Edit the layout

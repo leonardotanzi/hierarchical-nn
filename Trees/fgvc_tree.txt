@@ -1,0 +1,135 @@
+root
+--Boeing
+----707-320
+----727-200
+----Boeing 737
+------737-200
+------737-300
+------737-400
+------737-500
+------737-600
+------737-700
+------737-800
+------737-900
+----Boeing 747
+------747-100
+------747-200
+------747-300
+------747-400
+----Boeing 757
+------757-200
+------757-300
+----Boeing 767
+------767-200
+------767-300
+------767-400
+----Boeing 777
+------777-200
+------777-300
+--Airbus
+----A300B4
+----A310
+----A320X
+------A318
+------A319
+------A320
+------A321
+----A330
+------A330-200
+------A330-300
+----A340
+------A340-200
+------A340-300
+------A340-500
+------A340-600
+----A380
+--ATR
+----ATR-42
+----ATR-72
+--An-12
+--British Aerospace
+----BAE 146
+------BAE 146-200
+------BAE 146-300
+----BAE-125
+--Beechcraft
+----Beechcraft 1900
+----Boeing 717
+--C-130
+--C-47
+--Canadair
+----CRJ-200
+----CRJ-700X
+------CRJ-700
+------CRJ-900
+--Cessna
+----Cessna 172
+----Cessna 208
+----Cessna Citation
+------Cessna 525
+------Cessna 560
+----Challenger 600
+--McDonnell Douglas
+----DC-10
+----DC-3
+----DC-6
+----DC-8
+----DC-9-30
+--de Havilland
+----DH-82
+----DHC-1
+----DHC-6
+----Dash 8
+------DHC-8-100
+------DHC-8-300
+--DR-400
+--Dornier 328
+--Embraer
+----Embraer E-Jet
+------E-170
+------E-190
+------E-195
+----EMB-120
+----Embraer ERJ 145
+------ERJ 135
+------ERJ 145
+----Embraer Legacy 600
+--Eurofighter Typhoon
+--Lockheed Martin
+----F-16A/B
+----F/A-18
+--Dassault Aviation
+----Falcon 2000
+----Falcon 900
+--Fokker
+----Fokker 100
+----Fokker 50
+----Fokker 70
+--Global Express
+--Gulfstream Aerospace
+----Gulfstream
+------Gulfstream IV
+------Gulfstream V
+----Hawk T1
+--Ilyushin
+----Il-76
+----L-1011
+----MD-11
+----MD-80X
+------MD-80
+------MD-87
+----MD-90
+--Fairchild
+----Metroliner
+----Model B200
+--PA-28
+--SR-20
+--Saab
+----Saab 2000
+----Saab 340
+--Spitfire
+--Tornado
+--Tupolev
+----Tu-134
+----Tu-154
+--Yak-42

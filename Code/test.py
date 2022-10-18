@@ -3,15 +3,13 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-import torchvision
 
-from inout import to_latex_heatmap, save_list
+from inout import to_latex_heatmap
 from utils import seed_everything
 from evaluation import hierarchical_error
 from dataset import ImageFolderNotAlphabetic
-from visualization import plot_graph_top3superclasses, plot_graph, plot_variance
 from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
-    return_matrixes_topdown, return_matrixes_downtop, get_tree_limited_CIFAR
+    return_matrixes_topdown, return_matrixes_downtop
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -19,8 +17,6 @@ from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
-import random
-import plotly.express as px
 from transformers import ViTForImageClassification
 
 
@@ -29,9 +25,9 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "inception"
-    dataset = "cifar"
-    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_hloss_reg_lr0001_wd01_1on128_best.pth"
+    architecture = "vit"
+    dataset = "bones"
+    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_hloss_reg_lr0001_wd01_1on1_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
@@ -43,7 +39,7 @@ if __name__ == "__main__":
     batch_size = 32
 
     latex = False
-    plot_cf = True
+    plot_cf = False
 
     tree = get_tree_from_file(tree_file)
     # tree = get_tree_limited_CIFAR()
@@ -87,8 +83,6 @@ if __name__ == "__main__":
     model.to(device)
     model.eval()
 
-    # evaluate_regularization(model)
-
     y_pred = []
     y_true = []
 
@@ -110,16 +104,6 @@ if __name__ == "__main__":
         y_true.extend(labels)
 
     print(f"Hierarchical error is {h_err/dataset_size:.4f}")
-
-    ###############################################################################################################
-
-    # 1) Plot Graphs
-    # y_pred = sparser2coarser(y_pred, np.asarray(medium_labels))
-    # save_list("pkl//HLoss.pkl", y_pred)
-    # plot_graph(y_pred, y_true, classes)
-    # plot_graph_top3superclasses(y_pred, y_true, classes, superclasses)
-
-    ###############################################################################################################
 
     # 2) Confusion Matrixes
 

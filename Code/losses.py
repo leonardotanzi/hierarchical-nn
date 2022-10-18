@@ -1,9 +1,9 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from utils import sparser2coarser, class_to_index
-from anytree import Node, RenderTree, LevelOrderGroupIter, PreOrderIter
-from tree import return_matrixes_downtop, node_to_weights
+from utils import sparser2coarser
+from anytree import PreOrderIter
+from tree import node_to_weights
 
 
 def cross_entropy(predicted, actual, reduction):

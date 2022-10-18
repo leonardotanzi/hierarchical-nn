@@ -1,4 +1,4 @@
-from sklearn import datasets, svm, metrics
+from sklearn import metrics
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import torch
 from torchvision.transforms import Compose, ToTensor, Normalize, Resize
@@ -9,15 +9,13 @@ import numpy as np
 from sklearn.utils import shuffle
 
 from utils import seed_everything
-from evaluation import hierarchical_error
 from dataset import ImageFolderNotAlphabetic
-from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
-    return_matrixes_topdown, return_matrixes_downtop, get_tree_limited_CIFAR
+from tree import get_tree_from_file
 
 from anytree import LevelOrderGroupIter
 import matplotlib.pyplot as plt
 from transformers import ViTForImageClassification
-
+import pickle
 
 def extract_features(numbers):
 
@@ -25,19 +23,18 @@ def extract_features(numbers):
     seed_everything(0)
 
     batch_size = 1
-    architecture = "vit"
-    dataset = "cifar"
-    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_hloss_reg_lr0001_wd01_1on8_best.pth"
+    architecture = "inception"
+    dataset_name = "imagenet"
+    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset_name}//{architecture}-{dataset_name}_lr0001_wd01_1on8_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
     image_size = dict_architectures[architecture]
 
-    test_dir = f"..//..//Dataset//{dataset}//test//"
-    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
+    test_dir = f"..//..//Dataset//ImageNet64//Imagenet_leaves//"
+    tree_file = f"..//..//Dataset//ImageNet64//tree.txt"
 
     tree = get_tree_from_file(tree_file)
-    # tree = get_tree_limited_CIFAR()
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -48,8 +45,17 @@ def extract_features(numbers):
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+    if dataset_name == "imagenet":
+        pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" else "..//..//pkl//imagenet_dataset.pkl"
+        with open(pkl, "rb") as f:
+            dataset = pickle.load(f)
+
+        test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
+
+    else:
+        test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+
     dataset_size = len(test_loader)
 
     if architecture == "inception":
@@ -66,29 +72,22 @@ def extract_features(numbers):
         num_ftrs = model.classifier.in_features
         model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
-    # model = models.inception_v3(pretrained=True)
-    # model.aux_logits = False
-    # num_ftrs = model.fc.in_features
-    # model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-
     model.load_state_dict(torch.load(model_name))
     model.fc = nn.Sequential()
     model.to(device)
     model.eval()
 
-    # evaluate_regularization(model)
-
     y_pred = []
     y_true = []
 
-    # iterate over test data
     h_err = 0.0
 
     i = 0
     for inputs, labels in test_loader:
-        # if i == 5: break
+        # if i == : break
         i += 1
         inputs = inputs.to(device)
+        if dataset_name == "imagenet": inputs = Resize(size=image_size)(inputs)
         labels = labels.to(device)
 
         if labels.item() in numbers:
@@ -107,16 +106,18 @@ def extract_features(numbers):
 
 if __name__ == "__main__":
 
-    labels = [5, 6, 7, 8, 9, 65, 66, 67, 68, 69]
-    target_names = ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout', 'clock', 'keyboard', 'lamp', 'telephone', 'television']  # 'beaver', 'dolphin', 'otter', 'seal', 'whale', - 'baby', 'boy', 'girl', 'man', 'woman',
+    # labels = [5, 6, 7, 8, 9, 65, 66, 67, 68, 69]
+    # target_names = ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout', 'clock', 'keyboard', 'lamp', 'telephone', 'television']
+    #target_names = ["737-700", "737-800", "737-900", "A340-200", "A340-300", "A340-500"]
 
+
+    tree_file = f"..//..//Dataset//ImageNet64//tree.txt"
+    tree = get_tree_from_file(tree_file)
+    all_leaves = [leaf.name for leaf in tree.leaves]
+
+    target_names = ["thunder_snake", "ringneck_snake", "garter_snake", "bathing_cap", "shower_cap", "mortarboard"]
+    labels = list(map(lambda x: all_leaves.index(x), target_names))
     extract_features(labels)
-
-    # tree_file = f"..//..//Dataset//cifar//tree.txt"
-
-    # tree = get_tree_from_file(tree_file)
-
-    # target_names = [leaf.name for leaf in tree.leaves]
 
     X = np.load("representation_hl.npy")
     y = np.load("labels_hl.npy")
@@ -133,8 +134,8 @@ if __name__ == "__main__":
 
     X_r_lda = (X_r_lda - np.min(X_r_lda)) / (np.max(X_r_lda) - np.min(X_r_lda))
 
-    color_list = ["lime", "limegreen", "lightgreen", "green", "palegreen", "blue", "skyblue", "deepskyblue", "darkblue", "cornflowerblue"] # "tomato", "indianred", "firebrick", "red", "darkred"
-    marker_list = ["o", "o", "o", "o", "o", "v", "v", "v", "v", "v"] #"o", "o"] #]
+    color_list = ["lime", "limegreen", "green", "blue", "skyblue", "cornflowerblue"] #"lightgreen", "green", "palegreen", "blue", "skyblue", "deepskyblue", "darkblue", "cornflowerblue"] # "tomato", "indianred", "firebrick", "red", "darkred"
+    marker_list = ["o", "o", "o", "v", "v", "v"] #"o", "o"] #]
 
     with plt.style.context('seaborn-talk'):
         j = 0
@@ -151,21 +152,6 @@ if __name__ == "__main__":
         plt.tight_layout()
 
     plt.show()
-
-    # with plt.style.context('seaborn-talk'):
-    #     fig, axes = plt.subplots(1, 2, figsize=[13, 6])
-    #     for i, target_name in zip([i for i in range(len(target_names))], target_names):
-    #         axes[0].scatter(X_r_lda[y == i, 0], X_r_lda[y == i, 1], alpha=.8,
-    #                         label=target_name, marker='$%.f$' % i)
-    #         axes[1].scatter(X_r_lda[y == i, 2], X_r_lda[y == i, 3], alpha=.8,
-    #                         label=target_name, marker='$%.f$' % i)
-    #     axes[0].set_xlabel('Discriminant Coordinate 1')
-    #     axes[0].set_ylabel('Discriminant Coordinate 2')
-    #     axes[1].set_xlabel('Discriminant Coordinate 3')
-    #     axes[1].set_ylabel('Discriminant Coordinate 4')
-    #     plt.tight_layout()
-    #
-    # plt.show()
 
     n_samples = len(X)
 

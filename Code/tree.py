@@ -120,26 +120,6 @@ def write_file_tree_fgvc():
                 written_mod.append(values[2])
 
 
-def get_tree_FashionMNIST():
-
-    superclass_dict = {'Up': {'Short': ['T-shirt/top', 'Pullover', 'Shirt'], 'Long': ['Dress', 'Coat']},
-                       'Trouser': [], 'Bag': [], 'Shoes': ['Sandal', 'Sneaker', 'Ankle boot']}
-    root = Node("root")
-    for key, value in superclass_dict.items():
-        parent = Node(f"{key}", parent=root)
-        if type(value) is dict:
-            for key_next, value_next in value.items():
-                node = Node(f"{key_next}", parent=parent)
-                for classes in value_next:
-                    node2 = Node(f"{classes}", parent=node)
-        else:
-            for classes in value:
-                node = Node(f"{classes}", parent=parent)
-
-    print(RenderTree(root))
-    return root
-
-
 def get_tree_limited_CIFAR():
 
     # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
@@ -361,8 +341,3 @@ def return_matrixes_topdown(tree, plot=False):
             fig.show()
 
     return matrixes
-
-
-if __name__ == "__main__":
-    tree = get_tree_from_file("..\\..\\Dataset\\tree_paper.txt")
-    return_matrixes_topdown(tree, plot=False)
