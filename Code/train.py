@@ -39,8 +39,8 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture][0]
     batch_size = dict_architectures[architecture][1]
-    n_epochs = 30
-    learning_rate = 0.001
+    n_epochs = 40
+    learning_rate = 0.0001
     scheduler_step_size = 40
     validation_split = 0.1
 
