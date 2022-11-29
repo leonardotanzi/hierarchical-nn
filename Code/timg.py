@@ -4,12 +4,9 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 
-from inout import to_latex_heatmap
-from utils import seed_everything
-from evaluation import hierarchical_error
-from dataset import ImageFolderNotAlphabetic
-from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
-    return_matrixes_topdown, return_matrixes_downtop
+from inout import to_latex_heatmap, save_list
+from evaluation import accuracy_coarser_classes, hierarchical_error
+from tree import get_tree_from_file, get_all_labels_downtop, get_all_labels_topdown
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -17,32 +14,29 @@ from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
+import pickle
+from torchviz import make_dot
 from transformers import ViTForImageClassification
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    seed_everything(0)
-
-    architecture = "inception"
-    dataset = "cifar"
-    # model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_lr00001_wd01_1on1_best.pth"
-    model_name = "..//..//Models//WD//inception-cifar_hloss_reg_lr00001_wd10_1on8_best.pth"
-    dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
-
-    image_size = dict_architectures[architecture]
-
-    test_dir = f"..//..//Dataset//{dataset}//test//"
-    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
 
     batch_size = 32
 
+    architecture = "inception"
+    dict_architectures = {"inception": 299, "resnet": 299, "vit": 224}
+
+    image_size = dict_architectures[architecture]
+
+    model_name = "..//..//Models//Mat_version_210622//inception-imagenet//inception-imagenet_lr0001_wd01_1on8_best.pth"
+
     latex = False
     plot_cf = False
+    graph = False
 
-    tree = get_tree_from_file(tree_file)
-    # tree = get_tree_limited_CIFAR()
+    tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -53,16 +47,17 @@ if __name__ == "__main__":
     all_labels_downtop = get_all_labels_downtop(tree)
     all_labels = [*all_labels_topdown, *all_labels_downtop]
 
-    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
-    matrixes = [*matrixes_topdown, *matrixes_downtop]
-
     lens = [len(n) for n in all_nodes]
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    pkl = "..//..//pkl//imagenet_dataset299.pkl" if architecture == "inception" or architecture == "resnet" else "..//..//pkl//imagenet_dataset.pkl"
+
+    with open(pkl, "rb") as f:
+        dataset = pickle.load(f)
+
+    test_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
+
     dataset_size = len(test_loader)
 
     if architecture == "inception":
@@ -79,23 +74,35 @@ if __name__ == "__main__":
         num_ftrs = model.classifier.in_features
         model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
+    # model = nn.DataParallel(model)
     model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()
+
+    # evaluate_regularization(model)
 
     y_pred = []
     y_true = []
 
     # iterate over test data
-    h_err = 0.0
+    h_acc = 0.0
 
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
+        if architecture == "vit":
+            inputs = Resize(size=224)(inputs)
+
         labels = labels.to(device)
 
-        outputs = model(inputs).logits if architecture == "vit" else model(inputs)
+        if architecture == "vit":
+            outputs = model(inputs).logits
+        else:
+            outputs = model(inputs)
 
-        h_err += hierarchical_error(outputs, labels, tree, all_leaves, device)
+        if graph:
+            make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("net", format="png")
+
+        h_acc += hierarchical_error(outputs, labels, tree, all_leaves, device)
 
         outputs = (torch.max(torch.exp(outputs), 1)[1]).data.cpu().numpy()
         y_pred.extend(outputs)
@@ -103,7 +110,17 @@ if __name__ == "__main__":
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    print(f"Hierarchical error is {h_err/dataset_size:.4f}")
+    print(f"Hierarchical_error is {h_acc/dataset_size:.4f}")
+
+    ###############################################################################################################
+
+    # 1) Plot Graphs
+    # y_pred = sparser2coarser(y_pred, np.asarray(medium_labels))
+    # save_list("pkl//HLoss.pkl", y_pred)
+    # plot_graph(y_pred, y_true, classes)
+    # plot_graph_top3superclasses(y_pred, y_true, classes, superclasses)
+
+    ###############################################################################################################
 
     # 2) Confusion Matrixes
 
@@ -123,5 +140,3 @@ if __name__ == "__main__":
         plt.figure(figsize=(48, 28))
         sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0)
         plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(model_name.split("//")[-1].split(".")[0]))
-
-
