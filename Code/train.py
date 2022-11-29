@@ -38,7 +38,7 @@ if __name__ == "__main__":
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
     image_size = dict_architectures[architecture][0]
-    batch_size = 64 #dict_architectures[architecture][1]
+    batch_size = dict_architectures[architecture][1]
     n_epochs = 20
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -123,16 +123,17 @@ if __name__ == "__main__":
 
     model.to(device)
 
-    # Optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \
-        else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-
     # Scheduler
     if run_scheduler:
         scheduler = lr_scheduler.StepLR(optimizer, step_size=scheduler_step_size, gamma=0.3)
         # every n=step_size epoch the lr is multiplied by gamma
 
     for weight_decay in weight_decays:
+
+        # Optimizer
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \
+            else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+
         # Path
         model_path = f"..//..//Models//WD//"  # {architecture}-{dataset}//"
 
