@@ -28,7 +28,7 @@ if __name__ == "__main__":
     architecture = "inception"
     dataset = "cifar"
     # model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_lr00001_wd01_1on1_best.pth"
-    model_name = "..//..//Models//WD//inception-cifar_hloss_reg_lr0001_wd00001_1on8_best.pth"
+    model_name = "..//..//Models//WD//inception-cifar_hloss_reg_lr0001_wd01_1on128_best.pth"
     # model_name = "..//..//Models//td-dt//inception-fgvc-both_hloss_reg_lr0001_wd01_1on8_best.pth"
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
