@@ -41,7 +41,7 @@ if __name__ == "__main__":
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
     image_size = dict_architectures[architecture][0]
-    batch_size = dict_architectures[architecture][1]
+    batch_size = 64 #dict_architectures[architecture][1]
     n_epochs = 20
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    name = f"{architecture}-{dataset_name}"
+    name = f"{architecture}-{dataset_name}-random"
 
     all_labels_topdown = get_all_labels_topdown(tree)
     all_labels_downtop = get_all_labels_downtop(tree)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//unbalanced//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//random//"  # {architecture}-{dataset}//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
