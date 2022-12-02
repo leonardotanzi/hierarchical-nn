@@ -31,15 +31,17 @@ if __name__ == "__main__":
     ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
     ap.add_argument("-d", "--dataset", required=True, help="imagenet, fgvc, cifar, bones")
     ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
+    ap.add_argument("-t", "--tree", required=False, default="tree")
     args = vars(ap.parse_args())
 
     architecture = args["model"]
-    dataset = args["dataset"]
+    dataset_name = args["dataset"]
+    tree_file = args["tree"]
 
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
     image_size = dict_architectures[architecture][0]
-    batch_size = 64 #dict_architectures[architecture][1]
+    batch_size = dict_architectures[architecture][1]
     n_epochs = 20
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     freeze = False
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree_random.txt"
+    tree_file = f"..//..//Dataset//{dataset_name}//{tree_file}.txt"
     tree = get_tree_from_file(tree_file)
 
     all_leaves = [leaf.name for leaf in tree.leaves]
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    name = f"{architecture}-{dataset}-random"
+    name = f"{architecture}-{dataset_name}-random"
 
     all_labels_topdown = get_all_labels_topdown(tree)
     all_labels_downtop = get_all_labels_downtop(tree)
@@ -81,8 +83,8 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    train_dir = f"..//..//Dataset//{dataset}//train//"
-    test_dir = f"..//..//Dataset//{dataset}//test//"
+    train_dir = f"..//..//Dataset//{dataset_name}//train//"
+    test_dir = f"..//..//Dataset//{dataset_name}//test//"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
@@ -134,7 +136,7 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//frozen//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//unbalanced//"  # {architecture}-{dataset}//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,

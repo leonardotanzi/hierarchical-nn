@@ -33,7 +33,7 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     architecture = args["model"]
-    dataset = args["dataset"]
+    dataset_name = args["dataset"]
 
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     freeze = False
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
+    tree_file = f"..//..//Dataset//{dataset_name}//tree.txt"
     tree = get_tree_from_file(tree_file)
 
     all_leaves = [leaf.name for leaf in tree.leaves]
@@ -68,8 +68,8 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    train_dir = f"..//..//Dataset//{dataset}//train//"
-    test_dir = f"..//..//Dataset//{dataset}//test//"
+    train_dir = f"..//..//Dataset//{dataset_name}//train//"
+    test_dir = f"..//..//Dataset//{dataset_name}//test//"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
@@ -121,13 +121,13 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//td-dt//"  # {architecture}-{dataset}//"
+    model_path = "..//..//Models//td-dt//"  # {architecture}-{dataset}//"
 
     modes = ["td", "dt", "both"]
 
     for mode in modes:
 
-        name = f"{architecture}-{dataset}-{mode}"
+        name = f"{architecture}-{dataset_name}-{mode}"
 
         if mode == "td":
             all_labels_topdown = get_all_labels_topdown(tree)
