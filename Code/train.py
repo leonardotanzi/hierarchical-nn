@@ -41,7 +41,7 @@ if __name__ == "__main__":
     dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
 
     image_size = dict_architectures[architecture][0]
-    batch_size = 64 #dict_architectures[architecture][1]
+    batch_size = dict_architectures[architecture][1]
     n_epochs = 20
     learning_rate = 0.001
     scheduler_step_size = 40
