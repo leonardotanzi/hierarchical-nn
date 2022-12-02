@@ -18,6 +18,7 @@ import timeit
 from anytree import LevelOrderGroupIter
 import argparse
 from transformers import ViTForImageClassification
+import random
 
 
 if __name__ == "__main__":
@@ -47,7 +48,6 @@ if __name__ == "__main__":
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
 
-
     run_scheduler = False
     sp_regularization = False
     weight_decay = 0.1
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     freeze = False
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree_random.txt"
     tree = get_tree_from_file(tree_file)
 
     all_leaves = [leaf.name for leaf in tree.leaves]
@@ -64,28 +64,15 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    name = f"{architecture}-{dataset}-both"
-    only_td = False
-    only_dt = False
+    name = f"{architecture}-{dataset}-random"
 
-    if only_td:
-        all_labels_topdown = get_all_labels_topdown(tree)
-        all_labels = all_labels_topdown
-        matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-        matrixes = matrixes_topdown
-    elif only_dt:
-        all_labels_downtop = get_all_labels_downtop(tree)
-        all_labels = all_labels_downtop
-        matrixes_downtop = return_matrixes_downtop(tree, plot=False)
-        matrixes = matrixes_downtop
-    else:
-        all_labels_topdown = get_all_labels_topdown(tree)
-        all_labels_downtop = get_all_labels_downtop(tree)
-        all_labels = [*all_labels_topdown, *all_labels_downtop]
+    all_labels_topdown = get_all_labels_topdown(tree)
+    all_labels_downtop = get_all_labels_downtop(tree)
+    all_labels = [*all_labels_topdown, *all_labels_downtop]
 
-        matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-        matrixes_downtop = return_matrixes_downtop(tree, plot=False)
-        matrixes = [*matrixes_topdown, *matrixes_downtop]
+    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
+    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
+    matrixes = [*matrixes_topdown, *matrixes_downtop]
 
     lens = [len(set(n)) for n in all_labels]
 
@@ -99,7 +86,7 @@ if __name__ == "__main__":
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -112,6 +99,11 @@ if __name__ == "__main__":
     # Model
     if architecture == "inception":
         model = models.inception_v3(pretrained=True)
+        # Freeze layers
+        if freeze:
+            for param in model.parameters():
+                param.requires_grad = False
+
         model.aux_logits = False
         num_ftrs = model.fc.in_features
         model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
@@ -123,11 +115,6 @@ if __name__ == "__main__":
         model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
         num_ftrs = model.classifier.in_features
         model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
-
-    # Freeze layers
-    if freeze:
-        for param in model.parameters():
-            param.requires_grad = False
 
     if multigpu:
         if torch.cuda.device_count() > 1:
@@ -147,9 +134,8 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//td-dt//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//frozen//"  # {architecture}-{dataset}//"
 
-    print(f"Training with WD {weight_decay}")
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
                                   f"{name}_hloss_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")

@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture]
 
-    model_name = "..//..//Models//Mat_version_210622//inception-imagenet//inception-imagenet_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//td-dt//inception-imagenet-dt_hloss_reg_lr0001_wd01_1on128_best.pth"
 
     latex = False
     plot_cf = False
