@@ -35,8 +35,8 @@ if __name__ == "__main__":
 
     # coarser = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
-    image_size = 224
-    batch_size = 64 #dict_architectures[architecture][1]
+    image_size = 299
+    batch_size = 256
     n_epochs = 20
     learning_rate = 0.001
     validation_split = 0.1
