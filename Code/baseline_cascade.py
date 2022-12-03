@@ -3,7 +3,6 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-from torchsummary import summary
 
 from evaluation import accuracy_coarser_classes
 from losses import hierarchical_cc_treebased
@@ -33,6 +32,8 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     dataset = "cifar"
+
+    # coarser = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     image_size = 224
     batch_size = 64 #dict_architectures[architecture][1]
@@ -90,8 +91,11 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
+    model = models.inception_v3(pretrained=True)
 
-    model = ResNet50(3, len(all_leaves))
+    model.aux_logits = False
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
 
     model.to(device)
 
