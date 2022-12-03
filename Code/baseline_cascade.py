@@ -43,7 +43,7 @@ if __name__ == "__main__":
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
 
-    output_neurons = 2
+    output_neurons = 5
     # coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     # coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     model.aux_logits = False
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, 2)
+    model.fc = nn.Linear(num_ftrs, output_neurons)
 
     model.to(device)
 
