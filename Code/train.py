@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
