@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
-    name = f"resnet-{dataset}-aquaticmammals_fish"
+    name = f"resnet-{dataset}-largemanmade_largenatural"
 
     sp_regularization = False
     weight_decay = 0.1
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     reduction_factor = int(args["reduction"])
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree_subset1.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree_subset2.txt"
     tree = get_tree_from_file(tree_file)
     all_leaves = [leaf.name for leaf in tree.leaves]
 
