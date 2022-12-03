@@ -25,18 +25,20 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "inception"
-    dataset = "cifar"
+    architecture = "vit"
+    dataset = "bones"
     # model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_lr00001_wd01_1on1_best.pth"
     # model_name = "..//..//Models//WD//inception-cifar_hloss_reg_lr0001_wd00001_1on128_best.pth"
-    # model_name = "..//..//Models//td-dt//inception-imagenet-dt_hloss_reg_lr0001_wd01_1on128_best.pth"
-    model_name = "..//..//Models//random//inception-cifar_hloss_reg_lr0001_wd01_1on128_best.pth"
+    # model_name = "..//..//Models//td-dt//inception-fgvc-dt_hloss_reg_lr0001_wd01_1.pth"
+    #model_name = "..//..//Models//random//inception-cifar-random_hloss_reg_lr0001_wd01_1on8_best.pth"
+    model_name = "..//..//Models//unbalanced//vit-bones_unbalanced_lr0001_wd01_1on1_best.pth"
+
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
     image_size = dict_architectures[architecture]
 
     test_dir = f"..//..//Dataset//{dataset}//test//"
-    tree_file = f"..//..//Dataset//{dataset}//tree_random.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree.txt"
 
     batch_size = 32
 
