@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     image_size = dict_architectures[architecture][0]
     batch_size = dict_architectures[architecture][1]
-    n_epochs = 20
+    n_epochs = 30
     # SE VIT NON FUNZIONA ABBASSARE LR A 0.0001
     learning_rate = 0.001
     scheduler_step_size = 40
@@ -80,8 +80,6 @@ if __name__ == "__main__":
     lens = [len(set(n)) for n in all_labels]
 
     # Log
-    writer = SummaryWriter("..//Logs") #os.path.join(f"..//..//Logs//Server//{dataset}//", model_name.split("//")[-1].split(".")[0]))
-
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
     train_dir = f"..//..//Dataset//{dataset_name}//train//"
@@ -152,6 +150,9 @@ if __name__ == "__main__":
         model_name = os.path.join(model_path,
                                   f"{name}_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
     print(f"Model name: {model_name}")
+
+    writer = SummaryWriter(
+        f"..//LogsComp//{model_name.split('//')[-1].split('.')[0]}")  # os.path.join(f"..//..//Logs//Server//{dataset}//", model_name.split("//")[-1].split(".")[0]))
 
     # Parameters for training
     n_total_steps_train = len(train_loader)
