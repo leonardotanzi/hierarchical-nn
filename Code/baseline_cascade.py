@@ -44,9 +44,10 @@ if __name__ == "__main__":
     regularization = (args["hloss"] == "True")
 
     output_neurons = 2
-    coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    # coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
-    name = f"resnet-{dataset}-seaanimal_outdoorscenes"
+    name = f"resnet-{dataset}-aquaticmammals_fish"
 
     sp_regularization = False
     weight_decay = 0.1
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     reduction_factor = int(args["reduction"])
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree_subset.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree_subset1.txt"
     tree = get_tree_from_file(tree_file)
     all_leaves = [leaf.name for leaf in tree.leaves]
 
