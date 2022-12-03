@@ -45,9 +45,9 @@ if __name__ == "__main__":
 
     output_neurons = 2
     # coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-    coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+    # coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
-    name = f"resnet-{dataset}-largemanmade_largenatural"
+    name = f"resnet-{dataset}-first"
 
     sp_regularization = False
     weight_decay = 0.1
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     reduction_factor = int(args["reduction"])
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree_subset2.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree_subset11.txt"
     tree = get_tree_from_file(tree_file)
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -140,9 +140,9 @@ if __name__ == "__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                labels = sparser2coarser(labels, coarser).to(device)
+                # labels = sparser2coarser(labels, coarser).to(device)
 
-                labels = labels.type(torch.int64)
+                # labels = labels.type(torch.int64)
                 print(f"Step {j} / {len(loader)}")
 
                 # Forward
