@@ -238,25 +238,27 @@ def show_tables_WD():
 
     fig = go.Figure()
     # Create and style traces
-    fig.add_trace(go.Scatter(x=weight_decays, y=red_8_hmc, name='Reduction factor 8',
+    fig.add_trace(go.Scatter(x=weight_decays, y=red_8_mc, name='56 samples',
                              line=dict(color='firebrick', width=4)))
 
-    fig.add_trace(go.Scatter(x=weight_decays, y=red_16_hmc, name='Reduction factor 16',
+    fig.add_trace(go.Scatter(x=weight_decays, y=red_16_mc, name='28 samples',
                              line=dict(color='royalblue', width=4)))
 
-    fig.add_trace(go.Scatter(x=weight_decays, y=red_32_hmc, name='Reduction factor 32',
+    fig.add_trace(go.Scatter(x=weight_decays, y=red_32_mc, name='14 samples',
                              line=dict(color='green', width=4)))
 
-    fig.add_trace(go.Scatter(x=weight_decays, y=red_64_hmc, name='Reduction factor 64',
+    fig.add_trace(go.Scatter(x=weight_decays, y=red_64_mc, name='7 samples',
                              line=dict(color='black', width=4)))
 
-    fig.add_trace(go.Scatter(x=weight_decays, y=red_128_hmc, name='Reduction factor 128',
+    fig.add_trace(go.Scatter(x=weight_decays, y=red_128_mc, name='3.5 samples',
                              line=dict(color='gray', width=4)))
 
 
     # Edit the layout
-    fig.update_layout(xaxis_title='Lambda hyperparameter value',
-                      yaxis_title='Hierarchical Misclassification Cost (HMC)')#, plot_bgcolor='lavenderblush')
+    fig.update_layout(font=dict(size=15,color="black"),
+        xaxis_title='Lambda hyperparameter value',
+        yaxis_title='Misclassification Cost (MC)')
+        #plot_bgcolor='lavenderblush')
 
     fig.update_layout(legend=dict(
         # orientation="h",
@@ -274,5 +276,137 @@ def show_tables_WD():
     fig.show()
 
 
+def show_tables_tdbu():
+    import plotly.graph_objects as go
+
+    # aircraft
+    nsamples = ["3.5", "7.5", "15", "30", "60"]
+    # 1, CE
+    both_MC = [0.85, 0.75, 0.59, 0.53, 0.50]
+    td_MC = [0.81, 0.70, 0.60, 0.55, 0.53]
+    bu_MC = [0.81, 0.73, 0.62, 0.54, 0.52]
+
+    both_HMC = [0.80, 0.68, 0.51, 0.34, 0.15]
+    td_HMC = [0.80, 0.70, 0.56, 0.33, 0.16]
+    bu_HMC = [0.80, 0.70, 0.51, 0.34, 0.15]
+
+    # both_MC = [0.85, 0.75, 0.57, 0.34, 0.16]
+    # td_MC = [0.76, 0.69, 0.56, 0.33, 0.16]
+    # bu_MC = [0.81, 0.73, 0.51, 0.34, 0.15]
+    #
+    # both_HMC = [0.80, 0.68, 0.59, 0.53, 0.50]
+    # td_HMC = [0.80, 0.70, 0.60, 0.55, 0.53]
+    # bu_HMC = [0.80, 0.70, 0.62, 0.54, 0.52]
+
+    fig = go.Figure()
+    # Create and style traces
+    fig.add_trace(go.Scatter(x=nsamples, y=both_MC, name='Both MC',
+                             line=dict(color='firebrick', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=td_MC, name='Top-Down MC',
+                             line=dict(color='royalblue', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=bu_MC, name='Bottom-Up MC',
+                             line=dict(color='orange', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=both_HMC, name='Both HMC',
+                             line=dict(color='firebrick', width=4, dash='dot')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=td_HMC, name='Top-Down HMC',
+                             line=dict(color='royalblue', width=4, dash='dot')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=bu_HMC, name='Bottom-Up HMC',
+                             line=dict(color='orange', width=4, dash='dot')))
+
+    # Edit the layout
+    fig.update_layout(font=dict(
+            size=15,
+            color="black"
+        ),
+        xaxis_title='Number of samples per class',
+        # yaxis_title='Hierarchical Misclassification Cost (MC)',
+        plot_bgcolor='lavenderblush')
+
+    # fig.update_layout(legend=dict(
+    #     yanchor="bottom",
+    #     y=0.01,
+    #     xanchor="left",
+    #     x=0.01
+    # ), yaxis_range=[0,1])
+
+    fig.update_layout(legend=dict(
+        # orientation="h",
+        # itemwidth=100,
+        font=dict(
+            size=22,
+            color="black"
+        ),
+        yanchor="bottom",
+        y=0.01,
+        xanchor="left",
+        x=0.01
+    ), yaxis_range=[0, 1])
+
+    fig.show()
+
+
+def show_tables_frozen():
+    import plotly.graph_objects as go
+
+    # aircraft
+    nsamples = ["3.5", "7", "14", "26", "56"]
+    # 1, CE
+    frozen_mc = [0.81, 0.70, 0.62, 0.57, 0.53]
+    unfrozen_mc = [0.80, 0.72, 0.62, 0.54, 0.47]
+
+    frozen_hmc = [0.68, 0.60, 0.54, 0.51, 0.51]
+    unfrozen_hmc = [0.69, 0.61, 0.55, 0.49, 0.45]
+
+    fig = go.Figure()
+    # Create and style traces
+    fig.add_trace(go.Scatter(x=nsamples, y=frozen_mc, name='Frozen MC',
+                             line=dict(color='firebrick', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=unfrozen_mc, name='Unfrozen MC',
+                             line=dict(color='royalblue', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=frozen_hmc, name='Frozen HMC',
+                             line=dict(color='firebrick', width=4, dash='dot')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=unfrozen_hmc, name='Unfrozen HMC',
+                             line=dict(color='royalblue', width=4, dash='dot')))
+
+    # Edit the layout
+    fig.update_layout(font=dict(
+            size=15,
+            color="black"
+        ),
+        xaxis_title='Number of samples per class',
+        # yaxis_title='Hierarchical Misclassification Cost (MC)',
+        plot_bgcolor='lavenderblush')
+
+    # fig.update_layout(legend=dict(
+    #     yanchor="bottom",
+    #     y=0.01,
+    #     xanchor="left",
+    #     x=0.01
+    # ), yaxis_range=[0,1])
+
+    fig.update_layout(legend=dict(
+        # orientation="h",
+        # itemwidth=100,
+        font=dict(
+            size=22,
+            color="black"
+        ),
+        yanchor="bottom",
+        y=0.01,
+        xanchor="left",
+        x=0.01
+    ), yaxis_range=[0, 1])
+
+    fig.show()
+
+
 if __name__ == "__main__":
-    show_tables_acc()
+    show_tables_frozen()
