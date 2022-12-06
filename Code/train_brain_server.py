@@ -43,7 +43,7 @@ if __name__=="__main__":
     architecture = "resnet"
 
     n_epochs = 60
-    image_size = 299
+    image_size = 224
     validation_split = 0.15
     batch_size = 128
     freeze = True
@@ -102,7 +102,7 @@ if __name__=="__main__":
         if freeze:
             for param in model.parameters():
                 param.requires_grad = False
-                
+
         num_ftrs = model.fc.in_features
         # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
         model.fc = nn.Linear(num_ftrs, n_output)
