@@ -40,7 +40,7 @@ if __name__=="__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "vgg"
+    architecture = "resnet"
 
     n_epochs = 60
     image_size = 299
@@ -99,6 +99,10 @@ if __name__=="__main__":
 
     elif architecture == "resnet":
         model = models.resnet50(pretrained=True)
+        if freeze:
+            for param in model.parameters():
+                param.requires_grad = False
+                
         num_ftrs = model.fc.in_features
         # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
         model.fc = nn.Linear(num_ftrs, n_output)
@@ -108,18 +112,6 @@ if __name__=="__main__":
         num_ftrs = model.classifier.in_features
         # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
         model.classifier = nn.Linear(num_ftrs, n_output)
-
-    elif architecture == "vgg":
-        model = models.vgg16(pretrained=True)
-        # Freeze layers
-        if freeze:
-            for param in model.parameters():
-                param.requires_grad = False
-
-        num_ftrs = model.fc.in_features
-        # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
-        model.fc = nn.Linear(num_ftrs, n_output)
-
 
     if load_model:
         model.load_state_dict(torch.load("skull_pretr21_best.pth"))
