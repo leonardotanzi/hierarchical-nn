@@ -45,9 +45,9 @@ if __name__=="__main__":
     n_epochs = 60
     image_size = 299
     validation_split = 0.15
-    batch_size = 256
+    batch_size = 128
     freeze = False
-    run_scheduler = True
+    run_scheduler = False
     load_model = False
     learning_rate = 0.0001
     weight_decay = 0.5
