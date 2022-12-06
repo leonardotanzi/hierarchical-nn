@@ -43,7 +43,7 @@ if __name__=="__main__":
     architecture = "densenet"
 
     n_epochs = 60
-    image_size = 224
+    image_size = 299
     validation_split = 0.15
     batch_size = 256
     freeze = False
