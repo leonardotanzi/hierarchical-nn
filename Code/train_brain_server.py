@@ -44,7 +44,7 @@ if __name__=="__main__":
 
     n_epochs = 60
     image_size = 224
-    validation_split = 0.15
+    validation_split = 0.1
     batch_size = 128
     freeze = True
     run_scheduler = False
@@ -152,7 +152,7 @@ if __name__=="__main__":
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                print(f"Step {j} / {len(loader)}")
+                #print(f"Step {j} / {len(loader)}")
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
