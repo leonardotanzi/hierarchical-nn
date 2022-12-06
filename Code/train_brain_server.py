@@ -40,13 +40,13 @@ if __name__=="__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "densenet"
+    architecture = "vgg"
 
     n_epochs = 60
     image_size = 299
     validation_split = 0.15
     batch_size = 128
-    freeze = False
+    freeze = True
     run_scheduler = False
     load_model = False
     learning_rate = 0.0001
@@ -77,10 +77,10 @@ if __name__=="__main__":
     train_dir = "..//..//..//methinks//cleaned_brain//train"
     test_dir = "..//..//..//methinks//cleaned_brain//test"
 
-    train_dataset = ImageFolder(train_dir, augmentation_transform)
+    train_dataset = ImageFolder(train_dir, basic_transform)
     test_dataset = ImageFolder(test_dir, basic_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     dataset_sizes = {"train": len(train_dataset), "test": len(test_dataset)}
@@ -109,12 +109,24 @@ if __name__=="__main__":
         # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
         model.classifier = nn.Linear(num_ftrs, n_output)
 
+    elif architecture == "vgg":
+        model = models.vgg16(pretrained=True)
+        # Freeze layers
+        if freeze:
+            for param in model.parameters():
+                param.requires_grad = False
+
+        num_ftrs = model.fc.in_features
+        # model.fc = nn.Sequential(nn.Linear(num_ftrs, out_features=1024), nn.LeakyReLU(), nn.Linear(1024, n_output))
+        model.fc = nn.Linear(num_ftrs, n_output)
+
+
     if load_model:
         model.load_state_dict(torch.load("skull_pretr21_best.pth"))
 
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) #, weight_decay=weight_decay)
     # Scheduler
     if run_scheduler:
         scheduler = lr_scheduler.StepLR(optimizer, step_size=scheduler_step_size, gamma=0.3)
@@ -157,13 +169,14 @@ if __name__=="__main__":
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss = F.cross_entropy(outputs, labels, weight=torch.FloatTensor([0.5, 0.5]).to(device))
+                    loss = F.cross_entropy(outputs, labels) # weight=torch.FloatTensor([0.5, 0.5]).to(device))
 
                     # Backward + optimize
                     if phase == "train":
                         optimizer.zero_grad()
                         loss.backward()
                         optimizer.step()
+
                     if phase == "test":
                         CM += confusion_matrix(labels.cpu(), preds.cpu(), labels=[0, 1])
                 # Statistics
