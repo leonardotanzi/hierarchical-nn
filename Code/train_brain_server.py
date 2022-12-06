@@ -80,8 +80,8 @@ if __name__=="__main__":
     train_dataset = ImageFolder(train_dir, augmentation_transform)
     test_dataset = ImageFolder(test_dir, basic_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     dataset_sizes = {"train": len(train_dataset), "test": len(test_dataset)}
 
