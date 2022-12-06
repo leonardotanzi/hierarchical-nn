@@ -52,7 +52,7 @@ if __name__=="__main__":
     learning_rate = 0.0001
     weight_decay = 0.5
     scheduler_step_size = 15
-    classes = ["0", ""1"]
+    classes = ["0", "1"]
     n_output = len(classes)
 
     model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_oversampling_aug"
