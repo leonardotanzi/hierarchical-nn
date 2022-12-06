@@ -57,7 +57,7 @@ if __name__=="__main__":
 
     model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_oversampling_aug"
 
-    writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name))
+    writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name.split("//")[-1]))
 
     basic_transform = Compose([ToTensor(),
                                Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
