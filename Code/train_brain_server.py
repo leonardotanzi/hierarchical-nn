@@ -49,7 +49,7 @@ if __name__=="__main__":
     freeze = False
     run_scheduler = True
     load_model = False
-    learning_rate = 1e-4
+    learning_rate = 0.0001
     weight_decay = 0.5
     scheduler_step_size = 15
     classes = [0, 1]
