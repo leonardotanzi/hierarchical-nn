@@ -54,7 +54,7 @@ if __name__=="__main__":
     classes = ["0", "1"]
     n_output = len(classes)
 
-    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_cleaned"
+    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_lossweighted_cleaned"
 
     writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name.split("//")[-1]))
 
@@ -160,7 +160,7 @@ if __name__=="__main__":
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss = F.cross_entropy(outputs, labels) # weight=torch.FloatTensor([0.5, 0.5]).to(device))
+                    loss = F.cross_entropy(outputs, labels, weight=torch.FloatTensor([0.2, 0.8]).to(device))
 
                     # Backward + optimize
                     if phase == "train":
