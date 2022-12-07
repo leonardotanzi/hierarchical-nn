@@ -1,6 +1,5 @@
 import torch
-from torchvision.transforms import Compose, ToTensor, Normalize, Resize, RandomHorizontalFlip, RandomRotation, \
-    GaussianBlur, RandomErasing, RandomPerspective, CenterCrop, RandomVerticalFlip
+from torchvision.transforms import Compose, ToTensor, Normalize, Resize, RandomHorizontalFlip, RandomRotation, CenterCrop
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
@@ -16,7 +15,6 @@ import numpy as np
 import os
 import glob
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 import random
 
@@ -63,8 +61,8 @@ if __name__=="__main__":
 
     augmentation_transform = Compose([ToTensor(),
                                     Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-                                    Resize(image_size),
                                     CenterCrop(200),
+                                    Resize(image_size),
                                     RandomHorizontalFlip(p=0.5),
                                     # RandomVerticalFlip(p=0.5),
                                     RandomRotation(degrees=30)])
