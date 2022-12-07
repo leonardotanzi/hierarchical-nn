@@ -40,7 +40,7 @@ if __name__=="__main__":
     architecture = "inception"
 
     n_epochs = 60
-    image_size = 224
+    image_size = 299
     batch_size = 128
     freeze = False
     run_scheduler = False
