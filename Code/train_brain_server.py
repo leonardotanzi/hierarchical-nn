@@ -54,7 +54,7 @@ if __name__=="__main__":
     classes = ["0", "1"]
     n_output = len(classes)
 
-    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_lossweighted_cleaned"
+    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_lossweighted_aug_cleaned"
 
     writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name.split("//")[-1]))
 
@@ -68,15 +68,15 @@ if __name__=="__main__":
                                     CenterCrop(200),
                                     RandomHorizontalFlip(p=0.5),
                                     RandomVerticalFlip(p=0.5),
-                                    RandomRotation(degrees=30),
+                                    RandomRotation(degrees=30)])
                                     # GaussianBlur(kernel_size=(51, 91), sigma=3),
                                     # RandomErasing(p=0.3),
-                                    RandomPerspective(p=0.3, distortion_scale=0.3)])
+                                    #RandomPerspective(p=0.3, distortion_scale=0.3)])
 
     train_dir = "..//..//..//methinks//cleaned_brain//train"
     test_dir = "..//..//..//methinks//cleaned_brain//test"
 
-    train_dataset = ImageFolder(train_dir, basic_transform)
+    train_dataset = ImageFolder(train_dir, augmentation_transform)
     test_dataset = ImageFolder(test_dir, basic_transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
