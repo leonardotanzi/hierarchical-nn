@@ -49,12 +49,12 @@ if __name__=="__main__":
     run_scheduler = False
     load_model = False
     learning_rate = 0.0001
-    weight_decay = 10
+    weight_decay = 0.1
     scheduler_step_size = 15
     classes = ["0", "1"]
     n_output = len(classes)
 
-    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_oversampling_aug"
+    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_oversampling"
 
     writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name.split("//")[-1]))
 
