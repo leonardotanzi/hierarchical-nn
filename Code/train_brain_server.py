@@ -40,10 +40,10 @@ if __name__=="__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "resnet"
+    architecture = "densenet"
 
     n_epochs = 60
-    image_size = 224
+    image_size = 299
     batch_size = 128
     freeze = False
     run_scheduler = False
@@ -67,7 +67,7 @@ if __name__=="__main__":
                                     Resize(image_size),
                                     CenterCrop(200),
                                     RandomHorizontalFlip(p=0.5),
-                                    RandomVerticalFlip(p=0.5),
+                                    # RandomVerticalFlip(p=0.5),
                                     RandomRotation(degrees=30)])
                                     # GaussianBlur(kernel_size=(51, 91), sigma=3),
                                     # RandomErasing(p=0.3),
