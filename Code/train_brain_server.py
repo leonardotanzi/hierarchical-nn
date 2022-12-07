@@ -44,13 +44,12 @@ if __name__=="__main__":
 
     n_epochs = 60
     image_size = 224
-    validation_split = 0.1
     batch_size = 128
-    freeze = True
+    freeze = False
     run_scheduler = False
     load_model = False
     learning_rate = 0.0001
-    weight_decay = 0.5
+    weight_decay = 10
     scheduler_step_size = 15
     classes = ["0", "1"]
     n_output = len(classes)
@@ -118,7 +117,7 @@ if __name__=="__main__":
 
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) #, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     # Scheduler
     if run_scheduler:
         scheduler = lr_scheduler.StepLR(optimizer, step_size=scheduler_step_size, gamma=0.3)
