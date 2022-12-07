@@ -40,7 +40,7 @@ if __name__=="__main__":
     architecture = "inception"
 
     n_epochs = 60
-    image_size = 299
+    image_size = 224
     batch_size = 128
     freeze = False
     run_scheduler = False
@@ -73,7 +73,7 @@ if __name__=="__main__":
     train_dir = "..//..//..//methinks//cleaned_brain//train"
     test_dir = "..//..//..//methinks//cleaned_brain//test"
 
-    train_dataset = ImageFolder(train_dir, augmentation_transform)
+    train_dataset = ImageFolder(train_dir, basic_transform)
     test_dataset = ImageFolder(test_dir, basic_transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
