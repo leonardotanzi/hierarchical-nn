@@ -54,7 +54,7 @@ if __name__=="__main__":
     classes = ["0", "1"]
     n_output = len(classes)
 
-    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_oversampling"
+    model_name = f"..//..//..//methinks//Models//skull_{architecture}_lr{str(learning_rate)}_wd{str(weight_decay)}_cleaned"
 
     writer = SummaryWriter(os.path.join("..//..//..//methinks//Logs", model_name.split("//")[-1]))
 
@@ -130,7 +130,7 @@ if __name__=="__main__":
 
     for epoch in range(n_epochs):
         print("-" * 200)
-        print(f"Epoch {epoch + 1}/{n_epochs}")
+        print(f"Epoch {epoch}/{n_epochs}")
         CM = 0
 
         for phase in ["train", "test"]:
