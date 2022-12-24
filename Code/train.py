@@ -67,7 +67,7 @@ if __name__ == "__main__":
     all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
     all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
 
-    name = f"{architecture}-{dataset_name}-random"
+    name = f"{architecture}-{dataset_name}"
 
     all_labels_topdown = get_all_labels_topdown(tree)
     all_labels_downtop = get_all_labels_downtop(tree)
@@ -135,7 +135,7 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//random//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//new//"  # {architecture}-{dataset}//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
