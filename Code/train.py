@@ -135,7 +135,7 @@ if __name__ == "__main__":
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Path
-    model_path = f"..//..//Models//new//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//new_vit//"  # {architecture}-{dataset}//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
