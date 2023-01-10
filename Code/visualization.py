@@ -464,22 +464,22 @@ def show_tables_acc_newp():
 
     fig = go.Figure()
     # Create and style traces
-    fig.add_trace(go.Scatter(x=nsamples, y=resnet_fine_HMC, name='ResNet Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_fine_MC, name='ResNet Baseline',
                              line=dict(color='firebrick', width=4)))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=resnet_hier_HMC, name='ResNet Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_hier_MC, name='ResNet Hierarchy',
                              line=dict(color='royalblue', width=4)))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=inception_fine_HMC, name='Inception Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_fine_MC, name='Inception Baseline',
                              line=dict(color='firebrick', width=4, dash='dash')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=inception_hier_HMC, name='Inception Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_hier_MC, name='Inception Hierarchy',
                              line=dict(color='royalblue', width=4, dash='dash')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=vit_fine_HMC, name='ViT Baseline',
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_fine_MC, name='ViT Baseline',
                              line=dict(color='firebrick', width=4, dash='dot')))
 
-    fig.add_trace(go.Scatter(x=nsamples, y=vit_hier_HMC, name='ViT Hierarchy',
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_hier_MC, name='ViT Hierarchy',
                              line=dict(color='royalblue', width=4, dash='dot')))
 
     # Edit the layout
@@ -488,7 +488,7 @@ def show_tables_acc_newp():
             color="black"
         ),
         xaxis_title='Number of samples per class',
-        yaxis_title='Hierarchical Misclassification Cost (MC)', plot_bgcolor='lavenderblush')
+        yaxis_title='Misclassification Cost (MC)', plot_bgcolor='lavenderblush')
 
     # fig.update_layout(legend=dict(
     #     yanchor="bottom",
@@ -514,4 +514,4 @@ def show_tables_acc_newp():
 
 
 if __name__ == "__main__":
-    show_tables_frozen()
+    show_tables_acc_newp()
