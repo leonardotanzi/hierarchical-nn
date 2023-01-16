@@ -25,12 +25,12 @@ if __name__ == "__main__":
 
     batch_size = 32
 
-    architecture = "vit"
+    architecture = "resnet"
     dict_architectures = {"inception": 299, "resnet": 299, "vit": 224}
 
     image_size = dict_architectures[architecture]
 
-    model_name = "..//..//Models//newpoints//vit-imagenet_lr00001_wd01_1on4_best.pth"
+    model_name = "..//..//Models//newpoints//resnet-imagenet_hloss_reg_lr0001_wd01_1on2_best.pth"
 
     latex = False
     plot_cf = False
