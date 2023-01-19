@@ -30,6 +30,7 @@ if __name__ == "__main__":
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
     ap.add_argument("-reg", "--regularization", required=True, help="Using regularization hierarchical or not")
     ap.add_argument("-mat", "--matrices", required=True, help="td, bu, or b")
+    ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
     args = vars(ap.parse_args())
 
     architecture = "inception"  #args["model"]
