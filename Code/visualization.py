@@ -517,5 +517,77 @@ def show_tables_acc_newp():
     fig.show()
 
 
+def ablation():
+    import plotly.graph_objects as go
+
+    # CIFAR
+    nsamples = [3.5, 7, 14, 28, 56, 102, 204, 408]
+    # 1, MC
+    inception_fine_MC = [1 - i for i in [0.16, 0.22, 0.27, 0.31, 0.39, 0.60, 0.65, 0.68]]
+    inception_loss_MC = [1 - i for i in [0.19, 0.26, 0.39, 0.48, 0.58, 0.64, 0.68, 0.72]]
+    inception_reg_MC = [1 - i for i in [0.22, 0.35, 0.41, 0.45, 0.60, 0.63, 0.69, 0.74]]
+    inception_hier_MC = [1 - i for i in [0.18, 0.25, 0.32, 0.47, 0.50, 0.64, 0.71, 0.76]]
+
+    # 2, HMC
+    inception_fine_HMC = [0.68, 0.65, 0.63, 0.60, 0.56, 0.43, 0.41, 0.39]
+    inception_loss_HMC = [0.64, 0.60, 0.53, 0.47, 0.42, 0.40, 0.38, 0.37]
+    inception_reg_HMC = [0.67, 0.56, 0.53, 0.50, 0.43, 0.42, 0.39, 0.36]
+    inception_hier_HMC = [0.64, 0.61, 0.55, 0.47, 0.46, 0.40, 0.36, 0.35]
+
+    fig = go.Figure()
+    # Create and style traces
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_fine_HMC, name='ResNet Baseline',
+                             line=dict(color='firebrick', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=resnet_hier_HMC, name='ResNet Hierarchy',
+                             line=dict(color='royalblue', width=4)))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_fine_HMC, name='Inception Baseline',
+                             line=dict(color='firebrick', width=4, dash='dash')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=inception_hier_HMC, name='Inception Hierarchy',
+                             line=dict(color='royalblue', width=4, dash='dash')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_fine_HMC, name='ViT Baseline',
+                             line=dict(color='firebrick', width=4, dash='dot')))
+
+    fig.add_trace(go.Scatter(x=nsamples, y=vit_hier_HMC, name='ViT Hierarchy',
+                             line=dict(color='royalblue', width=4, dash='dot')))
+
+    # Edit the layout
+    fig.update_layout(font=dict(
+            size=15,
+            color="black"
+        ),
+        xaxis_title='Number of samples per class',
+        yaxis_title='Hierarchical Misclassification Cost (HMC)', plot_bgcolor='lavenderblush')
+
+    # fig.update_layout(legend=dict(
+    #     font = dict(
+    #         size=22,
+    #         color="black"
+    #     ),
+    #     yanchor="bottom",
+    #     y=0.01,
+    #     xanchor="left",
+    #     x=0.01
+    # ), yaxis_range=[0,1])
+
+    fig.update_layout(legend=dict(
+        # orientation="h",
+        # itemwidth=100,
+        font=dict(
+            size=22,
+            color="black"
+        ),
+        yanchor="top",
+        y=1-0.01,
+        xanchor="right",
+        x=1-0.01
+    ), yaxis_range=[0, 1])
+
+    fig.show()
+
+
 if __name__ == "__main__":
     show_tables_acc_newp()

@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from evaluation import accuracy_coarser_classes
 from losses import hierarchical_cc_treebased
-from dataset import train_val_dataset, ImageFolderNotAlphabetic
+from dataset import train_val_dataset, ImageFolderNotAlphabetic, ImbalanceCIFAR100
 from utils import decimal_to_string, seed_everything
 from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, get_all_labels_topdown, return_matrixes_topdown
 
@@ -86,7 +86,9 @@ if __name__ == "__main__":
     test_dir = f"..//..//Dataset//{dataset_name}//test//"
 
     # Load the data: train and test sets
-    train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
+    train_dataset = ImbalanceCIFAR100(root='./data', train=True,
+                                 download=True, transform=transform)
+    #train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
     dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=True)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
