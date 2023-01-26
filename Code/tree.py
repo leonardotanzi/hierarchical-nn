@@ -70,106 +70,6 @@ def get_tree_from_file(file_tree):
     return root
 
 
-def write_file_tree_fgvc():
-    ds = {}
-    ds_man = {}
-    ds_fam = {}
-
-    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_manufacturer_trainval.txt", "r") as file:
-
-        for line in file.readlines():
-            line = line[:-1]
-            token0 = line.split(" ")[0]
-            token1 = line[len(token0) + 1:]
-            ds[token0] = [token1]
-
-    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_family_trainval.txt", "r") as file:
-
-        for line in file.readlines():
-            line = line[:-1]
-            token0 = line.split(" ")[0]
-            token1 = line[len(token0) + 1:]
-            ds[token0].append(token1)
-
-    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_variant_trainval.txt", "r") as file:
-
-        for line in file.readlines():
-            line = line[:-1]
-            token0 = line.split(" ")[0]
-            token1 = line[len(token0) + 1:]
-            ds[token0].append(token1)
-
-    print(ds)
-
-    with open("FGVCtree.txt", "w") as file:
-        written_man = []
-        for values in ds.values():
-            if values[0] not in written_man:
-                file.write(values[0] + "\n")
-                written_fam = []
-                written_mod = []
-                written_man.append(values[0])
-
-            if values[1] not in written_fam:
-                file.write("--" + values[1] + "\n")
-                written_mod = []
-                written_fam.append(values[1])
-
-            if values[2] not in written_mod:
-                file.write("----" + values[2] + "\n")
-                written_mod.append(values[2])
-
-
-def get_tree_limited_CIFAR():
-
-    # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
-    #                                 'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']},
-    #                    'land animal': {'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
-    #                                    'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
-    #                                    'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
-    #                                    'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
-    #                                    'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel']},
-    #
-    #                    'insect and invertebrates': {'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
-    #                                                 'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm']},
-    #
-    #                    'flora': {'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
-    #                              'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
-    #                              'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree']},
-    #
-    #                    'object': {'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
-    #                               'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
-    #                               'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe']},
-    #                    'outdoor scenes': {'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
-    #                                       'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea']},
-    #                    'people': ['baby', 'boy', 'girl', 'man', 'woman'],
-    #                    'vehicles': {'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
-    #                                 'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}}
-
-    superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
-                                      'fish': ['aquarium_fish', 'flatfish']},
-                       'people': ['baby', 'boy', 'girl', 'man'],
-                       'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
-                                 'fruit and vegetables': ['apple', 'mushroom']
-                                 }}
-
-    # # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
-    root = Node("root")
-    for key, value in superclass_dict.items():
-        parent = Node(f"{key}", parent=root)
-        if type(value) is dict:
-            for key_next, value_next in value.items():
-                node = Node(f"{key_next}", parent=parent)
-                for classes in value_next:
-                    node2 = Node(f"{classes}", parent=node)
-        else:
-            for classes in value:
-                node = Node(f"{classes}", parent=parent)
-
-    print(RenderTree(root))
-    return root
-
-
 def get_all_labels_downtop(tree):
 
     all_labels_node = []
@@ -341,3 +241,105 @@ def return_matrixes_topdown(tree, plot=False):
             fig.show()
 
     return matrixes
+
+#-----------------------------------------------------------------------------------------------------------
+
+
+def write_file_tree_fgvc():
+    ds = {}
+    ds_man = {}
+    ds_fam = {}
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_manufacturer_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0] = [token1]
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_family_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0].append(token1)
+
+    with open("..//..//Dataset//fgvc-aircraft-2013b//data//images_variant_trainval.txt", "r") as file:
+
+        for line in file.readlines():
+            line = line[:-1]
+            token0 = line.split(" ")[0]
+            token1 = line[len(token0) + 1:]
+            ds[token0].append(token1)
+
+    print(ds)
+
+    with open("FGVCtree.txt", "w") as file:
+        written_man = []
+        for values in ds.values():
+            if values[0] not in written_man:
+                file.write(values[0] + "\n")
+                written_fam = []
+                written_mod = []
+                written_man.append(values[0])
+
+            if values[1] not in written_fam:
+                file.write("--" + values[1] + "\n")
+                written_mod = []
+                written_fam.append(values[1])
+
+            if values[2] not in written_mod:
+                file.write("----" + values[2] + "\n")
+                written_mod.append(values[2])
+
+
+def get_tree_limited_CIFAR():
+
+    # superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin', 'otter', 'seal', 'whale'],
+    #                                 'fish': ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout']},
+    #                    'land animal': {'large carnivores': ['bear', 'leopard', 'lion', 'tiger', 'wolf'],
+    #                                    'large omnivores and herbivores': ['camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo'],
+    #                                    'medium-sized mammals': ['fox', 'porcupine', 'possum', 'raccoon', 'skunk'],
+    #                                    'reptiles': ['crocodile', 'dinosaur', 'lizard', 'snake', 'turtle'],
+    #                                    'small mammals': ['hamster', 'mouse', 'rabbit', 'shrew', 'squirrel']},
+    #
+    #                    'insect and invertebrates': {'insects': ['bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach'],
+    #                                                 'non-insect invertebrates': ['crab', 'lobster', 'snail', 'spider', 'worm']},
+    #
+    #                    'flora': {'flowers': ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
+    #                              'fruit and vegetables': ['apple', 'mushroom', 'orange', 'pear', 'sweet_pepper'],
+    #                              'trees': ['maple_tree', 'oak_tree', 'palm_tree', 'pine_tree', 'willow_tree']},
+    #
+    #                    'object': {'food containers': ['bottle', 'bowl', 'can', 'cup', 'plate'],
+    #                               'household electrical devices': ['clock', 'keyboard', 'lamp', 'telephone', 'television'],
+    #                               'household furniture': ['bed', 'chair', 'couch', 'table', 'wardrobe']},
+    #                    'outdoor scenes': {'large man-made outdoor things': ['bridge', 'castle', 'house', 'road', 'skyscraper'],
+    #                                       'large natural outdoor scenes': ['cloud', 'forest', 'mountain', 'plain', 'sea']},
+    #                    'people': ['baby', 'boy', 'girl', 'man', 'woman'],
+    #                    'vehicles': {'vehicles 1': ['bicycle', 'bus', 'motorcycle', 'pickup_truck', 'train'],
+    #                                 'vehicles 2': ['lawn_mower', 'rocket', 'streetcar', 'tank', 'tractor']}}
+
+    superclass_dict = {'sea animal': {'aquatic mammals': ['beaver', 'dolphin'],
+                                      'fish': ['aquarium_fish', 'flatfish']},
+                       'people': ['baby', 'boy', 'girl', 'man'],
+                       'flora': {'flowers': ['orchid', 'poppy', 'tulip'],
+                                 'fruit and vegetables': ['apple', 'mushroom']
+                                 }}
+
+    # # # assegno la somma delle leaves ai nodi maggiori e i valori singoli ai leaf, mantendendo la batch size
+    root = Node("root")
+    for key, value in superclass_dict.items():
+        parent = Node(f"{key}", parent=root)
+        if type(value) is dict:
+            for key_next, value_next in value.items():
+                node = Node(f"{key_next}", parent=parent)
+                for classes in value_next:
+                    node2 = Node(f"{classes}", parent=node)
+        else:
+            for classes in value:
+                node = Node(f"{classes}", parent=parent)
+
+    print(RenderTree(root))
+    return root

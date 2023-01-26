@@ -24,13 +24,6 @@ def imshow(img):
 
 
 def to_latex_heatmap(n_classes, classes_name, matrix):
-    # "\newcommand\items{4}   %Number of classes
-    # \arrayrulecolor{black} %Table line colors
-    # \noindent\begin{tabular}{c*{\items}{|E}|}
-
-    # this output
-
-    # \end{tabular}"
 
     basic_string = "\multicolumn{1}{c}{} &" + "\n"
 
@@ -50,13 +43,6 @@ def to_latex_heatmap(n_classes, classes_name, matrix):
         basic_string += " \\\ \hhline{~*\items{|-}|}" + "\n"
 
     print(basic_string)
-
-    #
-    # A  & 100   & 0  & 10  & 0   \\ \hhline{~*\items{|-}|}
-    # B  & 10   & 80  & 10  & 0 \\ \hhline{~*\items{|-}|}
-    # C  & 30   & 0   & 70  & 0 \\ \hhline{~*\items{|-}|}
-    # D  & 30   & 0   & 70  & 0 \\ \hhline{~*\items{|-}|}
-    # \end{tabular}"
 
 
 def readpgm(name):

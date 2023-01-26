@@ -16,7 +16,7 @@ from anytree import LevelOrderGroupIter
 import matplotlib.pyplot as plt
 from transformers import ViTForImageClassification
 import pickle
-import anytree
+
 
 def extract_features(numbers, architecture, dataset_name, model_name):
 

@@ -3,22 +3,16 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Resize
 from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
-
-from evaluation import accuracy_coarser_classes
-from losses import hierarchical_cc_treebased
+import torch.nn.functional as F
 from dataset import train_val_dataset, ImageFolderNotAlphabetic
 from utils import decimal_to_string, seed_everything
-from tree import get_tree_from_file, get_all_labels_downtop, return_matrixes_downtop, get_all_labels_topdown, return_matrixes_topdown
+from tree import get_tree_from_file
 
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim import lr_scheduler
 import timeit
-from anytree import LevelOrderGroupIter
 import argparse
-from transformers import ViTForImageClassification
-import random
 
 
 if __name__ == "__main__":
@@ -28,67 +22,48 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-hl", "--hloss", required=True, help="Using loss hierarchical or not")
-    ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
-    ap.add_argument("-d", "--dataset", required=True, help="imagenet, fgvc, cifar, bones")
     ap.add_argument("-r", "--reduction", required=True, help="Reduction factor")
-    ap.add_argument("-t", "--tree", required=False, default="tree")
+
     args = vars(ap.parse_args())
 
-    architecture = args["model"]
-    dataset_name = args["dataset"]
-    tree_file = args["tree"]
+    dataset = "cifar"
 
-    dict_architectures = {"inception": [299, 256], "resnet": [224, 256], "vit": [224, 128]}
-
-    image_size = dict_architectures[architecture][0]
-    batch_size = dict_architectures[architecture][1]
-    n_epochs = 30
-    # If ViT doesn't work set LR to 0.0001
+    image_size = 299
+    batch_size = 64
+    n_epochs = 20
     learning_rate = 0.001
-    scheduler_step_size = 40
     validation_split = 0.1
 
     hierarchical_loss = (args["hloss"] == "True")
     regularization = (args["hloss"] == "True")
 
-    run_scheduler = False
+    output_neurons = 5
+    # coarser = torch.Tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    # coarser = torch.Tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+    name = f"resnet-{dataset}-fourth"
+
     sp_regularization = False
     weight_decay = 0.1
     less_samples = True
     reduction_factor = int(args["reduction"])
-    reduce_val = False
-    freeze = False
     multigpu = False
 
-    tree_file = f"..//..//Dataset//{dataset_name}//{tree_file}.txt"
+    tree_file = f"..//..//Dataset//{dataset}//tree_subset22.txt"
     tree = get_tree_from_file(tree_file)
-
     all_leaves = [leaf.name for leaf in tree.leaves]
 
-    all_nodes_names = [[node.name for node in children] for children in LevelOrderGroupIter(tree)][1:]
-    all_nodes = [[node for node in children] for children in LevelOrderGroupIter(tree)][1:]
-
-    name = f"{architecture}-{dataset_name}"
-
-    all_labels_topdown = get_all_labels_topdown(tree)
-    all_labels_downtop = get_all_labels_downtop(tree)
-    all_labels = [*all_labels_topdown, *all_labels_downtop]
-
-    matrixes_topdown = return_matrixes_topdown(tree, plot=False)
-    matrixes_downtop = return_matrixes_downtop(tree, plot=False)
-    matrixes = [*matrixes_topdown, *matrixes_downtop]
-
-    lens = [len(set(n)) for n in all_labels]
-
     # Log
+    writer = SummaryWriter("..//Logs") #os.path.join(f"..//..//Logs//Server//{dataset}//", model_name.split("//")[-1].split(".")[0]))
+
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    train_dir = f"..//..//Dataset//{dataset_name}//train//"
-    test_dir = f"..//..//Dataset//{dataset_name}//test//"
+    train_dir = f"..//..//Dataset//{dataset}//train//"
+    test_dir = f"..//..//Dataset//{dataset}//test//"
 
     # Load the data: train and test sets
     train_dataset = ImageFolderNotAlphabetic(train_dir, classes=all_leaves, transform=transform)
-    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=reduce_val)
+    dataset = train_val_dataset(train_dataset, validation_split, reduction_factor, reduce_val=False)
 
     train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     val_loader = DataLoader(dataset["val"], batch_size=batch_size, shuffle=False, drop_last=True, num_workers=4)
@@ -99,44 +74,19 @@ if __name__ == "__main__":
     print(f"LR should be around {lr_ratio:.4f}")
 
     # Model
-    if architecture == "inception":
-        model = models.inception_v3(pretrained=True)
-        # Freeze layers
-        if freeze:
-            for param in model.parameters():
-                param.requires_grad = False
+    model = models.inception_v3(pretrained=True)
 
-        model.aux_logits = False
-        num_ftrs = model.fc.in_features
-        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-    elif architecture == "resnet":
-        model = models.resnet50(pretrained=True)
-        num_ftrs = model.fc.in_features
-        model.fc = nn.Linear(num_ftrs, out_features=len(all_leaves))
-    elif architecture == "vit":
-        model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
-        num_ftrs = model.classifier.in_features
-        model.classifier = nn.Linear(num_ftrs, out_features=len(all_leaves))
-
-    if multigpu:
-        if torch.cuda.device_count() > 1:
-            print("Let's use", torch.cuda.device_count(), "GPUs!")
-            model = nn.DataParallel(model)
-        else:
-            multigpu = False
+    model.aux_logits = False
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, output_neurons)
 
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if regularization \
             else torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-    # Scheduler
-    if run_scheduler:
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=scheduler_step_size, gamma=0.3)
-        # every n=step_size epoch the lr is multiplied by gamma
-
     # Path
-    model_path = f"..//..//Models//baseline_longtail//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//cascade//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
@@ -152,14 +102,13 @@ if __name__ == "__main__":
                                   f"{name}_lr{decimal_to_string(learning_rate)}_wd{decimal_to_string(weight_decay)}_1on{reduction_factor}.pth")
     print(f"Model name: {model_name}")
 
-    writer = SummaryWriter(
-        f"..//LogsComp//{model_name.split('//')[-1].split('.')[0]}")  # os.path.join(f"..//..//Logs//Server//{dataset}//", model_name.split("//")[-1].split(".")[0]))
-
     # Parameters for training
     n_total_steps_train = len(train_loader)
     n_total_steps_val = len(val_loader)
     platoon = 0
     best_acc = 0.0
+    associated_medium_acc = 0.0
+    associated_coarse_acc = 0.0
 
     for epoch in range(n_epochs):
         start = timeit.default_timer()
@@ -178,31 +127,26 @@ if __name__ == "__main__":
 
             running_loss = 0.0
             running_corrects = 0
-            running_corrects_coarser_level = [0 for i in range(len(all_labels))]
             running_loss_fine = 0.0
-            running_loss_coarser_level = [0.0 for i in range(len(all_labels))]
-
-            epoch_acc_coarser = [0 for i in range(len(all_labels))]
-            epoch_loss_coarser = [0.0 for i in range(len(all_labels))]
 
             # Iterate over data
             for j, (inputs, labels) in enumerate(loader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
+                # labels = sparser2coarser(labels, coarser).to(device)
+
+                # labels = labels.type(torch.int64)
                 print(f"Step {j} / {len(loader)}")
 
                 # Forward
                 with torch.set_grad_enabled(phase == "train"):
 
-                    outputs = model(inputs).logits if architecture == "vit" else model(inputs)
+                    outputs = model(inputs)
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss, loss_dict = hierarchical_cc_treebased(outputs, labels, tree, lens, all_labels, all_leaves,
-                                                                model, 0.0, device, hierarchical_loss, regularization,
-                                                                sp_regularization, weight_decay, matrixes, architecture,
-                                                                multigpu)
+                    loss = F.cross_entropy(outputs, labels)
 
                     # Backward + optimize
                     if phase == "train":
@@ -213,24 +157,12 @@ if __name__ == "__main__":
                 # Statistics
                 running_loss += loss.item()
                 running_corrects += torch.sum(preds == labels.data).item()
-                running_loss_fine += loss_dict["loss_fine"]
-
-                for i in range(len(all_labels)):
-                    running_corrects_coarser_level[i] += accuracy_coarser_classes(outputs, labels, np.asarray(all_labels[i]),
-                                                                   len(all_labels[i]), device)
-                    running_loss_coarser_level[i] += loss_dict[f"loss_{i}"]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects / dataset_sizes[phase]
             epoch_loss_fine = running_loss_fine / dataset_sizes[phase]
 
-            for i in range(len(all_labels)):
-                epoch_acc_coarser[i] = running_corrects_coarser_level[i] / dataset_sizes[phase]
-                epoch_loss_coarser[i] = running_loss_coarser_level[i] / dataset_sizes[phase]
-
             print(f"Step {j + 1}/{n_total_steps}, {phase} Loss: {epoch_loss:.4f}, Acc: {epoch_acc:.4f}")
-            for i in range(len(all_labels)):
-                print(f"{phase} Loss {i}: {epoch_loss_coarser[i]:.4f}, Accuracy {i}: {epoch_acc_coarser[i]:.4f}")
 
             if (j + 1) % n_total_steps == 0:
                 if phase == "val":
@@ -248,8 +180,6 @@ if __name__ == "__main__":
                     print("End of validation epoch.")
                     writer.add_scalar("Validation loss", epoch_loss, epoch)
                     writer.add_scalar("Validation accuracy", epoch_acc, epoch)
-                    for i in range(len(all_labels)):
-                        writer.add_scalar(f"Validation accuracy {i}", epoch_acc_coarser[i], epoch)
 
                     writer.add_scalars("Training vs. validation loss",
                                        {"Training": epoch_loss_compare, "Validation": epoch_loss}, epoch)
@@ -258,24 +188,14 @@ if __name__ == "__main__":
 
                     plot_dict = {"Loss": epoch_loss, "Fine Loss": epoch_loss_fine}
 
-                    for i in range(len(all_labels)):
-                        plot_dict[f"Loss {i}"] = epoch_loss_coarser[i]
-
                     writer.add_scalars("Losses and penalties validation", plot_dict, epoch)
 
                 elif phase == "train":
-                    if run_scheduler:
-                        scheduler.step()
                     print("End of training epoch.")
                     writer.add_scalar("Training loss", epoch_loss, epoch)
                     writer.add_scalar("Training accuracy", epoch_acc, epoch)
-                    for i in range(len(all_labels)):
-                        writer.add_scalar(f"Training accuracy {i}", epoch_acc_coarser[i], epoch)
 
                     plot_dict = {"Loss": epoch_loss, "Fine Loss": epoch_loss_fine}
-
-                    for i in range(len(all_labels)):
-                        plot_dict[f"Loss {i}"] = epoch_loss_coarser[i]
 
                     writer.add_scalars("Losses and penalties training", plot_dict, epoch)
                     epoch_loss_compare = epoch_loss

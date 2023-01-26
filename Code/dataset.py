@@ -9,6 +9,40 @@ import shutil
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
 
+
+class ImageFolderNotAlphabetic(datasets.DatasetFolder):
+    def __init__(self, root, classes, transform=None, target_transform=None,
+                 loader=datasets.folder.default_loader, is_valid_file=None):
+        self.classes = classes
+        super(ImageFolderNotAlphabetic, self).__init__(root, loader,
+                                                       IMG_EXTENSIONS if is_valid_file is None else None,
+                                                       transform=transform,
+                                                       target_transform=target_transform,
+                                                       is_valid_file=is_valid_file)
+        self.imgs = self.samples
+
+    def find_classes(self, directory):
+        classes = self.classes
+        if not classes:
+            raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
+        class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
+        return classes, class_to_idx
+
+
+def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False, reduction_factor_val=16):
+    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
+    datasets = {}
+
+    train_idx = [index for i, index in enumerate(train_idx) if i % reduction_factor == 0]
+    if reduce_val:
+        val_idx = [index for i, index in enumerate(val_idx) if i % reduction_factor_val == 0]
+
+    datasets["train"] = Subset(dataset, train_idx)
+    datasets["val"] = Subset(dataset, val_idx)
+    return datasets
+
+#-----------------------------------------------------------------------------------------------------------
+
 class ImbalanceCIFAR10(datasets.CIFAR10):
     cls_num = 10
 
@@ -100,38 +134,6 @@ class ClassSpecificImageFolderNotAlphabetic(datasets.DatasetFolder):
             raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
-
-
-
-class ImageFolderNotAlphabetic(datasets.DatasetFolder):
-    def __init__(self, root, classes, transform=None, target_transform=None,
-                 loader=datasets.folder.default_loader, is_valid_file=None):
-        self.classes = classes
-        super(ImageFolderNotAlphabetic, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                                                       transform=transform,
-                                                       target_transform=target_transform,
-                                                       is_valid_file=is_valid_file)
-        self.imgs = self.samples
-
-    def find_classes(self, directory):
-        classes = self.classes
-        if not classes:
-            raise FileNotFoundError(f"Couldn't find any class folder in {directory}.")
-        class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
-        return classes, class_to_idx
-
-
-def train_val_dataset(dataset, val_split, reduction_factor=1, reduce_val=False, reduction_factor_val=16):
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, shuffle=True)
-    datasets = {}
-
-    train_idx = [index for i, index in enumerate(train_idx) if i % reduction_factor == 0]
-    if reduce_val:
-        val_idx = [index for i, index in enumerate(val_idx) if i % reduction_factor_val == 0]
-
-    datasets["train"] = Subset(dataset, train_idx)
-    datasets["val"] = Subset(dataset, val_idx)
-    return datasets
 
 
 def build_mapping_imagenet():

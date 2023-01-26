@@ -9,27 +9,6 @@ from anytree.search import find
 from anytree import PreOrderIter
 
 
-def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
-
-    predicted = torch.softmax(predicted, dim=1) + 1e6
-    predicted = torch.argmax(predicted, dim=1)
-
-    node_actual_name = np.asarray(all_leaves)[np.asarray(actual.cpu(), dtype=np.int64)]
-    node_pred_name = np.asarray(all_leaves)[np.asarray(predicted.cpu(), dtype=np.int64)]
-
-    h_acc = 0.0
-
-    # read each couple of actual and predicted node, compute the ancestor, find the depth and compute metric
-    for i, (n1, n2) in enumerate(zip(node_actual_name, node_pred_name)):
-        node_actual = find(tree, lambda node: node.name == n1)
-        node_pred = find(tree, lambda node: node.name == n2)
-        ca = commonancestors(node_actual, node_pred)
-        depth = ca[-1].depth
-        h_acc += depth / tree.height if n1 != n2 else 1
-
-    return (h_acc / i) * 100
-
-
 def hierarchical_error(predicted, actual, tree, all_leaves, device):
 
     predicted = torch.softmax(predicted, dim=1) + 1e6
@@ -50,6 +29,51 @@ def hierarchical_error(predicted, actual, tree, all_leaves, device):
         h_error += 2**(-depth)
 
     return h_error / i
+
+#-----------------------------------------------------------------------------------------------------------
+
+def cpb(predicted, actual, tree, all_leaves, device):
+    predicted = torch.softmax(predicted, dim=1) + 1e6
+    predicted = torch.argmax(predicted, dim=1)
+
+    node_actual_name = np.asarray(all_leaves)[np.asarray(actual.cpu(), dtype=np.int64)]
+    node_pred_name = np.asarray(all_leaves)[np.asarray(predicted.cpu(), dtype=np.int64)]
+
+    cpb_val = 0.0
+
+    # read each couple of actual and predicted node, compute the ancestor, find the depth and compute metric
+    for i, (n1, n2) in enumerate(zip(node_actual_name, node_pred_name)):
+        if n1 == n2:
+            cpb_val += 1
+        else:
+            node_actual = find(tree, lambda node: node.name == n1)
+            node_pred = find(tree, lambda node: node.name == n2)
+            ca = commonancestors(node_actual, node_pred)[-1]
+            n_leaves = len(ca.leaves)
+            cpb_val += 1 - n_leaves/len(all_leaves)
+
+    return (cpb_val / i) * 100
+
+
+def hierarchical_accuracy(predicted, actual, tree, all_leaves, device):
+
+    predicted = torch.softmax(predicted, dim=1) + 1e6
+    predicted = torch.argmax(predicted, dim=1)
+
+    node_actual_name = np.asarray(all_leaves)[np.asarray(actual.cpu(), dtype=np.int64)]
+    node_pred_name = np.asarray(all_leaves)[np.asarray(predicted.cpu(), dtype=np.int64)]
+
+    h_acc = 0.0
+
+    # read each couple of actual and predicted node, compute the ancestor, find the depth and compute metric
+    for i, (n1, n2) in enumerate(zip(node_actual_name, node_pred_name)):
+        node_actual = find(tree, lambda node: node.name == n1)
+        node_pred = find(tree, lambda node: node.name == n2)
+        ca = commonancestors(node_actual, node_pred)
+        depth = ca[-1].depth
+        h_acc += depth / tree.height if n1 != n2 else 1
+
+    return (h_acc / i) * 100
 
 
 def accuracy_coarser_classes(predicted, actual, coarser_labels, n_superclass, device):
