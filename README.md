@@ -8,3 +8,5 @@ ShareLatex file:
 
 
 Both a conda env and a requirement.txt file are present in the Env folder.
+
+NB: ImageNet presents a different test file because, due to its size, the testing dataset is loaded from a pkl file. I will solve this
