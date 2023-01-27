@@ -56,7 +56,7 @@ if __name__ == "__main__":
     weight_decay = 0.1
     less_samples = True
     reduction_factor = int(args["reduction"])
-    reduce_val = False
+    reduce_val = True
     freeze = False
     multigpu = False
 
