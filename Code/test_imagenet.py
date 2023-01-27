@@ -4,9 +4,10 @@ from torch.utils.data import DataLoader
 from torchvision import models
 import torch.nn as nn
 
-from inout import to_latex_heatmap, save_list
-from evaluation import accuracy_coarser_classes, hierarchical_error
+from inout import to_latex_heatmap
+from evaluation import hierarchical_error
 from tree import get_tree_from_file, get_all_labels_downtop, get_all_labels_topdown
+from utils import seed_everything
 
 from anytree import LevelOrderGroupIter
 import numpy as np
@@ -15,26 +16,31 @@ import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
 import pickle
-from torchviz import make_dot
 from transformers import ViTForImageClassification
+import argparse
 
 
 if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    seed_everything(0)
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
+    args = vars(ap.parse_args())
+
+    architecture = args["model"]
+
     batch_size = 32
 
-    architecture = "vit"
     dict_architectures = {"inception": 299, "resnet": 299, "vit": 224}
-
     image_size = dict_architectures[architecture]
 
     model_name = "..//..//Models//newpoints//vit-imagenet_hloss_reg_lr0001_wd01_1on4_best.pth"
 
     latex = False
     plot_cf = False
-    graph = False
 
     tree = get_tree_from_file("..//..//Dataset//ImageNet64//tree.txt")
 
@@ -99,9 +105,6 @@ if __name__ == "__main__":
         else:
             outputs = model(inputs)
 
-        if graph:
-            make_dot(outputs, params=dict(list(model.named_parameters())), show_attrs=True, show_saved=True).render("net", format="png")
-
         h_acc += hierarchical_error(outputs, labels, tree, all_leaves, device)
 
         outputs = (torch.max(torch.exp(outputs), 1)[1]).data.cpu().numpy()
@@ -112,15 +115,6 @@ if __name__ == "__main__":
 
     print(f"Hierarchical_error is {h_acc/dataset_size:.4f}")
 
-    ###############################################################################################################
-
-    # 1) Plot Graphs
-    # y_pred = sparser2coarser(y_pred, np.asarray(medium_labels))
-    # save_list("pkl//HLoss.pkl", y_pred)
-    # plot_graph(y_pred, y_true, classes)
-    # plot_graph_top3superclasses(y_pred, y_true, classes, superclasses)
-
-    ###############################################################################################################
 
     # 2) Confusion Matrixes
 

@@ -7,7 +7,7 @@ import torch.nn as nn
 from inout import to_latex_heatmap
 from utils import seed_everything
 from evaluation import hierarchical_error, cpb
-from dataset import ImageFolderNotAlphabetic, ImbalanceCIFAR100
+from dataset import ImageFolderNotAlphabetic
 from tree import get_tree_from_file, get_all_labels_topdown, get_all_labels_downtop, \
     return_matrixes_topdown, return_matrixes_downtop
 
@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sn
 import pandas as pd
 from transformers import ViTForImageClassification
+import argparse
 
 
 if __name__ == "__main__":
@@ -25,25 +26,29 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed_everything(0)
 
-    architecture = "resnet"
-    dataset = "bones"
-    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset}//{architecture}-{dataset}_hloss_reg_lr0001_wd01_1on1_best.pth"
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-m", "--model", required=True, help="Inception, ResNet or ViT")
+    ap.add_argument("-d", "--dataset", required=True, help="fgvc, cifar, bones")
+    args = vars(ap.parse_args())
+
+    architecture = args["model"]
+    dataset_name = args["dataset"]
+
+    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset_name}//{architecture}-{dataset_name}_hloss_reg_lr0001_wd01_1on1_best.pth"
 
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
     image_size = dict_architectures[architecture]
 
-    test_dir = f"..//..//Dataset//{dataset}//test//"
+    test_dir = f"..//..//Dataset//{dataset_name}//test//"
 
     batch_size = 32
 
-    compare_with_sota = False
     latex = False
-    plot_cf = True
+    plot_cf = False
 
-    tree_file = f"..//..//Dataset//{dataset}//tree_2levels.txt" if compare_with_sota else f"..//..//Dataset//{dataset}//tree.txt"
+    tree_file = f"..//..//Dataset//{dataset_name}//tree.txt"
     tree = get_tree_from_file(tree_file)
-    # tree = get_tree_limited_CIFAR()
 
     all_leaves = [leaf.name for leaf in tree.leaves]
 
@@ -62,11 +67,7 @@ if __name__ == "__main__":
 
     transform = Compose([ToTensor(), Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), Resize((image_size, image_size))])
 
-    if compare_with_sota:
-        test_dataset = ImbalanceCIFAR100(root='./data', train=False,
-                                          download=True, transform=transform, imb_factor=1)
-    else:
-        test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
+    test_dataset = ImageFolderNotAlphabetic(test_dir, classes=all_leaves, transform=transform)
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     dataset_size = len(test_loader)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 
     # iterate over test data
     h_err = 0.0
-    cpb_val = 0.0
+    # cpb_val = 0.0
 
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
@@ -103,7 +104,7 @@ if __name__ == "__main__":
         outputs = model(inputs).logits if architecture == "vit" else model(inputs)
 
         h_err += hierarchical_error(outputs, labels, tree, all_leaves, device)
-        cpb_val += cpb(outputs, labels, tree, all_leaves, device)
+        # cpb_val += cpb(outputs, labels, tree, all_leaves, device)
         outputs = (torch.max(torch.exp(outputs), 1)[1]).data.cpu().numpy()
         y_pred.extend(outputs)
 
@@ -111,7 +112,7 @@ if __name__ == "__main__":
         y_true.extend(labels)
 
     print(f"Hierarchical error is {h_err/dataset_size:.4f}")
-    print(f"CPB is {cpb_val/dataset_size:.4f}")
+    # print(f"CPB is {cpb_val/dataset_size:.4f}")
     # 2) Confusion Matrixes
 
     # 2.1) CLASSES
