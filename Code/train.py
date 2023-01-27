@@ -136,7 +136,7 @@ if __name__ == "__main__":
         # every n=step_size epoch the lr is multiplied by gamma
 
     # Path
-    model_path = f"..//..//Models//baseline_longtail//"  # {architecture}-{dataset}//"
+    model_path = f"..//..//Models//newpoints//"  # {architecture}-{dataset}//"
 
     if hierarchical_loss and not regularization:
         model_name = os.path.join(model_path,
