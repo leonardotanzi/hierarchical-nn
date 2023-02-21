@@ -34,8 +34,7 @@ if __name__ == "__main__":
     architecture = args["model"]
     dataset_name = args["dataset"]
 
-    model_name = f"..//..//Models//Mat_version_210622//{architecture}-{dataset_name}//{architecture}-{dataset_name}_hloss_reg_lr0001_wd01_1on1_best.pth"
-
+    model_name = f"..//..//Models//newpoints//{architecture}-{dataset_name}_hloss_reg_lr0001_wd01_1on2_best.pth"
     dict_architectures = {"inception": 299, "resnet": 224, "vit": 224}
 
     image_size = dict_architectures[architecture]
@@ -93,9 +92,12 @@ if __name__ == "__main__":
     y_pred = []
     y_true = []
 
+    out_export = []
+
     # iterate over test data
     h_err = 0.0
     # cpb_val = 0.0
+    err = 0.0
 
     for inputs, labels in test_loader:
         inputs = inputs.to(device)
@@ -103,33 +105,48 @@ if __name__ == "__main__":
 
         outputs = model(inputs).logits if architecture == "vit" else model(inputs)
 
+        np.set_printoptions(suppress=True)
+        tmp = np.around((torch.softmax(outputs, dim=1)).data.cpu().numpy(), decimals=2)
+        out_export.extend(tmp)
+
         h_err += hierarchical_error(outputs, labels, tree, all_leaves, device)
         # cpb_val += cpb(outputs, labels, tree, all_leaves, device)
         outputs = (torch.max(torch.exp(outputs), 1)[1]).data.cpu().numpy()
+
+        for a, b in zip(outputs, y_pred):
+            if a!=b: err += 1
+
+        a = (outputs==y_pred)
+
         y_pred.extend(outputs)
 
         labels = labels.data.cpu().numpy()
         y_true.extend(labels)
 
-    print(f"Hierarchical error is {h_err/dataset_size:.4f}")
+    print(f"Hierarchical error is {h_err/dataset_size/100:.4f}")
+    print(f"Error is {err/dataset_size/100:.4f}")
     # print(f"CPB is {cpb_val/dataset_size:.4f}")
     # 2) Confusion Matrixes
 
     # 2.1) CLASSES
-    print(classification_report(y_true, y_pred))
-    cf_matrix = confusion_matrix(y_true, y_pred)
-    print(cf_matrix)
+    # print(classification_report(y_true, y_pred))
+    # cf_matrix = confusion_matrix(y_true, y_pred)
+    # print(cf_matrix)
+    #
+    # df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(all_leaves), index=[i for i in all_leaves],
+    #                      columns=[i for i in all_leaves])
+    #
+    # if latex:
+    #     print(to_latex_heatmap(len(all_leaves), all_leaves,
+    #                            (cf_matrix / np.sum(cf_matrix) * len(all_leaves)) * 100))
+    #
+    # if plot_cf:
+    #     plt.figure(figsize=(12, 7))
+    #     sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0)
+    #     plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(model_name.split("//")[-1].split(".")[0]))
 
-    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * len(all_leaves), index=[i for i in all_leaves],
-                         columns=[i for i in all_leaves])
-
-    if latex:
-        print(to_latex_heatmap(len(all_leaves), all_leaves,
-                               (cf_matrix / np.sum(cf_matrix) * len(all_leaves)) * 100))
-
-    if plot_cf:
-        plt.figure(figsize=(12, 7))
-        sn.heatmap(df_cm, cmap="coolwarm", annot=True, fmt=".2f", vmin=0)
-        plt.savefig("..\\ConfusionMatrixes\\{}-CM.png".format(model_name.split("//")[-1].split(".")[0]))
-
-
+    # res = []
+    # for key, value in zip(y_true, out_export):
+    #     res.append((key, list(value)))
+    # # Printing resultant dictionary
+    # print("Resultant dictionary is : " + str(res))

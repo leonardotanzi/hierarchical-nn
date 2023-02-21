@@ -28,7 +28,8 @@ def hierarchical_error(predicted, actual, tree, all_leaves, device):
         depth = ca[-1].depth
         h_error += 2**(-depth)
 
-    return h_error / i
+    print(i)
+    return h_error
 
 #-----------------------------------------------------------------------------------------------------------
 

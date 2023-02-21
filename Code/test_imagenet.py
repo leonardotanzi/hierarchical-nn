@@ -37,7 +37,7 @@ if __name__ == "__main__":
     dict_architectures = {"inception": 299, "resnet": 299, "vit": 224}
     image_size = dict_architectures[architecture]
 
-    model_name = "..//..//Models//newpoints//vit-imagenet_hloss_reg_lr0001_wd01_1on4_best.pth"
+    model_name = f"..//..//Models//newpoints//{architecture}-imagenet_hloss_reg_lr0001_wd01_1on1_best.pth"
 
     latex = False
     plot_cf = False
